@@ -9,6 +9,7 @@ interface Award {
   "Award ID": string;
   "Recipient Name": string;
   "Award Amount": number;
+  "Start Date": string;
   "End Date": string;
   "Awarding Agency": string;
   generated_internal_id?: string;
@@ -43,13 +44,30 @@ async function fetchAwards(recipient: string): Promise<Award[]> {
 }
 
 const daysFromNow = (d: string) => (new Date(d).getTime() - Date.now()) / 86_400_000;
+const daysSince = (d: string) => (Date.now() - new Date(d).getTime()) / 86_400_000;
 
-// Pull federal contracts for the defense cluster and flag near-term expirations
-// (the leading layoff indicator for a defense site) and new/large awards.
-//
-// Enhancement noted in the spec: instead of the expiry heuristic below, snapshot
-// each week's active awards to a table and diff, so a contract that simply
-// disappears (non-renewed) also becomes a signal.
+function usdShort(n: number): string {
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
+  if (n >= 1e3) return `$${Math.round(n / 1e3)}K`;
+  return `$${Math.round(n)}`;
+}
+
+// Materiality thresholds. A defense prime like Raytheon holds hundreds of
+// contracts, so one contract expiring is normal churn, not a risk. We roll each
+// employer's Collin County awards up into a portfolio and only flag when the
+// movement is material: a large share (or dollar amount) of the book expiring
+// soon, or a genuinely large new award. This yields at most one risk and one
+// growth signal per employer instead of one row per contract.
+const EXPIRY_ABS = 25_000_000; // >= $25M of active work expiring within the window
+const EXPIRY_SHARE = 0.3; // ...or >= 30% of the tracked portfolio,
+const EXPIRY_SHARE_MIN = 5_000_000; //    provided that share is at least $5M
+const EXPIRY_WINDOW_DAYS = 120;
+const NEW_AWARD_MIN = 10_000_000; // a newly started award >= $10M counts as growth
+const NEW_AWARD_RECENT_DAYS = 365;
+
+// Pull federal contracts for the defense cluster in Collin County and emit
+// aggregate, portfolio-level signals rather than one per contract.
 export async function usaspendingSignals(
   employers: EmployerRow[]
 ): Promise<NormalizedSignal[]> {
@@ -61,32 +79,100 @@ export async function usaspendingSignals(
   for (const e of targets) {
     const recipient = e.aliases.find((a) => /raytheon|rtx/i.test(a)) ?? e.name;
     const awards = await fetchAwards(recipient);
-    for (const a of awards) {
-      const dLeft = daysFromNow(a["End Date"]);
-      const expiringSoon = dLeft > 0 && dLeft < 120 && a["Award Amount"] >= 1_000_000;
-      const newOrLarge = dLeft > 365 && a["Award Amount"] >= 1_000_000;
-      if (!expiringSoon && !newOrLarge) continue;
+    out.push(...aggregateAwards(awards, e));
+  }
+  return out;
+}
 
-      const status = expiringSoon
-        ? "expiring within 120 days with no visible follow-on"
-        : "new or large active award";
-      const amount = Math.round(a["Award Amount"]).toLocaleString();
+// Roll an employer's Collin County awards into at most one risk (expiry
+// concentration) and one growth (new large awards) signal. Exported pure so it
+// can be tested offline against sample award sets.
+export function aggregateAwards(awards: Award[], e: EmployerRow): NormalizedSignal[] {
+  const out: NormalizedSignal[] = [];
+  if (awards.length === 0) return out;
 
+  {
+    const recipientName = awards[0]["Recipient Name"] || e.name;
+    const active = awards.filter((a) => daysFromNow(a["End Date"]) > 0);
+    if (active.length === 0) return out;
+
+    const totalActive = active.reduce((s, a) => s + (a["Award Amount"] || 0), 0);
+    const contractCount = active.length;
+
+    // Expiring-soon concentration.
+    const expiring = active.filter((a) => {
+      const d = daysFromNow(a["End Date"]);
+      return d > 0 && d <= EXPIRY_WINDOW_DAYS;
+    });
+    const expiringValue = expiring.reduce((s, a) => s + (a["Award Amount"] || 0), 0);
+    const expiringShare = totalActive > 0 ? expiringValue / totalActive : 0;
+
+    const materialExpiry =
+      expiring.length > 0 &&
+      (expiringValue >= EXPIRY_ABS ||
+        (expiringShare >= EXPIRY_SHARE && expiringValue >= EXPIRY_SHARE_MIN));
+
+    if (materialExpiry) {
+      const pct = Math.round(expiringShare * 100);
       out.push({
         source: "usaspending",
         tier: "authoritative",
-        externalId: `${a["Award ID"]}:${expiringSoon ? "exp" : "new"}`,
-        companyName: a["Recipient Name"],
-        sourceUrl: a.generated_internal_id
-          ? `https://www.usaspending.gov/award/${a.generated_internal_id}`
+        // Stable per-employer id: one expiry-concentration row, not one per contract.
+        externalId: `emp${e.id}:portfolio-expiry`,
+        companyName: recipientName,
+        sourceUrl: "https://www.usaspending.gov",
+        observedText:
+          `${recipientName} federal contract portfolio in Collin County: ` +
+          `${usdShort(totalActive)} active across ${contractCount} tracked awards. ` +
+          `${usdShort(expiringValue)} (${pct}%) across ${expiring.length} awards expires within ` +
+          `${EXPIRY_WINDOW_DAYS} days. This is a material share of the book, not routine churn; ` +
+          `worth confirming recompete / follow-on status.`,
+        raw: {
+          recipient: recipientName,
+          totalActive,
+          contractCount,
+          expiringValue,
+          expiringCount: expiring.length,
+          expiringShare,
+          kind: "portfolio-expiry",
+        },
+      });
+    }
+
+    // Newly started large awards (genuine expansion / hiring indicator).
+    const newLarge = active.filter(
+      (a) =>
+        (a["Award Amount"] || 0) >= NEW_AWARD_MIN &&
+        daysSince(a["Start Date"]) >= 0 &&
+        daysSince(a["Start Date"]) <= NEW_AWARD_RECENT_DAYS
+    );
+    const newLargeValue = newLarge.reduce((s, a) => s + (a["Award Amount"] || 0), 0);
+
+    if (newLarge.length > 0 && newLargeValue >= NEW_AWARD_MIN) {
+      const largest = [...newLarge].sort((a, b) => b["Award Amount"] - a["Award Amount"])[0];
+      out.push({
+        source: "usaspending",
+        tier: "authoritative",
+        externalId: `emp${e.id}:portfolio-new`,
+        companyName: recipientName,
+        sourceUrl: largest.generated_internal_id
+          ? `https://www.usaspending.gov/award/${largest.generated_internal_id}`
           : "https://www.usaspending.gov",
         observedText:
-          `Federal contract for ${a["Recipient Name"]} from ${a["Awarding Agency"]}, ` +
-          `$${amount}, ending ${a["End Date"]}. Status: ${status}. ` +
-          `Place of performance: Collin County, TX.`,
-        raw: a,
+          `${recipientName} won ${newLarge.length} new large federal award(s) in Collin County ` +
+          `in the last ${NEW_AWARD_RECENT_DAYS} days totaling ${usdShort(newLargeValue)} ` +
+          `(largest ${usdShort(largest["Award Amount"])} from ${largest["Awarding Agency"]}). ` +
+          `Possible expansion or hiring indicator.`,
+        raw: {
+          recipient: recipientName,
+          newCount: newLarge.length,
+          newLargeValue,
+          largestAward: largest["Award ID"],
+          kind: "portfolio-new",
+        },
       });
     }
   }
+
   return out;
 }

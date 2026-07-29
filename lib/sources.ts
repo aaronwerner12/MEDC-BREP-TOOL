@@ -62,12 +62,13 @@ export const SOURCES: SourceDef[] = [
     detail: "Building permits geofenced to watchlist addresses; new construction vs. demolition/decommission.",
   },
   {
-    name: "OSHA + EPA ECHO",
-    status: "planned",
+    name: "EPA / OSHA ECHO",
+    status: "live",
     tier: "authoritative",
     cadence: "Daily",
     covers: ["Environmental / Safety", "Regulatory Issues"],
-    detail: "Inspections, citations, and environmental violations from public federal databases.",
+    detail:
+      "Facility compliance and enforcement status for McKinney watchlist employers from EPA/OSHA ECHO; a current violation flag becomes a risk signal.",
   },
   {
     name: "County court / PACER",

@@ -64,6 +64,8 @@ const SOURCE_LABELS: Record<string, string> = {
   sec_edgar: "SEC EDGAR",
   permits: "Permits",
   costar: "CoStar",
+  epa_echo: "EPA / OSHA ECHO",
+  manual: "Pasted",
 };
 
 async function loadDesk(): Promise<DeskData> {

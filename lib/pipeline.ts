@@ -6,6 +6,7 @@ import type { NormalizedSignal, ScoredSignal } from "./types";
 import { usaspendingSignals } from "../adapters/usaspending";
 import { twcWarnSignals } from "../adapters/twcWarn";
 import { secEdgarSignals } from "../adapters/secEdgar";
+import { echoSignals } from "../adapters/echo";
 
 interface FeedDef {
   source: string;
@@ -23,6 +24,8 @@ const FEEDS: FeedDef[] = [
   // notices now that the filter is McKinney-only.
   { source: "twc_warn", run: twcWarnSignals, replaceUnhandled: true },
   { source: "sec_edgar", run: secEdgarSignals },
+  // ECHO reflects current compliance state, so replace unhandled rows each run.
+  { source: "epa_echo", run: echoSignals, replaceUnhandled: true },
 ];
 
 // Keep a single pull well within the serverless function time limit: cap how

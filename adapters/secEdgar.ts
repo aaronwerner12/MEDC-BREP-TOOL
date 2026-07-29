@@ -10,9 +10,9 @@ import type { EmployerRow } from "../lib/employers";
 // User-Agent. https://data.sec.gov/submissions/CIK##########.json returns the
 // company's recent filings as parallel arrays.
 const UA = "McKinney Signal Desk (awerner@visitmckinney.com)";
-const WINDOW_DAYS = 45;
+const WINDOW_DAYS = 30;
 const TARGET_FORMS = new Set(["8-K", "10-K", "10-Q"]);
-const MAX_PER_ENTITY = 20;
+const MAX_PER_ENTITY = 5;
 
 // Public watchlist entities and their SEC CIKs. `expect` is a lowercase
 // substring verified against the name EDGAR returns, so a mistyped CIK yields

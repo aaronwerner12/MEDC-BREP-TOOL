@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { NormalizedSignal, ScoredSignal, SignalType } from "./types";
 import { type EmployerRow, matchEmployer } from "./employers";
+import { brepGuidance, normalizeCategory } from "./brep";
 
 // Construct the client lazily on first use, not at import time, so a build can
 // import routes that pull in the scorer without ANTHROPIC_API_KEY present.
@@ -38,8 +39,13 @@ Employer named in the signal: ${sig.companyName}
 Signal:
 """${sig.observedText}"""
 
+Classify this into exactly one BREP category from the list below, using its
+healthy vs risk indicators to set signalType (a healthy sign -> "growth", a risk
+indicator -> "risk", neither/unclear -> "neutral"):
+${brepGuidance()}
+
 Return ONLY this JSON:
-{"signalType":"risk"|"growth"|"neutral","category":"short label","priority":0-100,"summary":"one factual sentence","recommendedAction":"one specific BRE next step","talkingPoint":"outreach opener or empty string"}`;
+{"signalType":"risk"|"growth"|"neutral","category":"<exactly one category name from the list above>","priority":0-100,"summary":"one factual sentence","recommendedAction":"one specific BRE next step","talkingPoint":"outreach opener or empty string"}`;
 
   const res = await anthropicClient().messages.create({
     model: MODEL,
@@ -62,7 +68,7 @@ Return ONLY this JSON:
     ...sig,
     employerId: match?.id ?? null,
     signalType,
-    category: p.category ?? "Signal",
+    category: normalizeCategory(p.category ?? ""),
     priority: Math.max(0, Math.min(100, Number(p.priority) || 0)),
     summary: p.summary ?? "",
     recommendedAction: p.recommendedAction ?? "",

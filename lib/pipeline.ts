@@ -18,7 +18,10 @@ interface FeedDef {
 
 const FEEDS: FeedDef[] = [
   { source: "usaspending", run: usaspendingSignals, replaceUnhandled: true },
-  { source: "twc_warn", run: twcWarnSignals },
+  // WARN is a current-year listing we re-fetch whole, so replace unhandled rows
+  // each run -- this also retires any previously-ingested neighboring-city
+  // notices now that the filter is McKinney-only.
+  { source: "twc_warn", run: twcWarnSignals, replaceUnhandled: true },
   { source: "sec_edgar", run: secEdgarSignals },
 ];
 

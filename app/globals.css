@@ -257,6 +257,70 @@ a {
   margin-top: 18px;
 }
 
+/* Links + employer detail --------------------------------------------------*/
+.link {
+  color: var(--navy);
+  text-decoration: none;
+  cursor: pointer;
+}
+.link:hover {
+  color: var(--denim);
+  text-decoration: underline;
+}
+.emp-link {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+.emp-link:hover {
+  background: #f7f5ef;
+}
+.emp-status-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.emp-status-row .status {
+  margin-left: 0;
+}
+.emp-counts {
+  color: var(--denim);
+  font-size: 13px;
+  font-weight: 600;
+}
+.emp-aliases {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.handled-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13.5px;
+}
+.handled-row .hr-cat {
+  font-weight: 600;
+  color: var(--navy);
+  white-space: nowrap;
+}
+.handled-row .hr-sum {
+  color: var(--ink);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.handled-row .hr-date {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 /* KPI tiles --------------------------------------------------------------- */
 .kpis {
   display: grid;

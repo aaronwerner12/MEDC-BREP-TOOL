@@ -248,7 +248,13 @@ function SignalCard({ s }: { s: SignalRow }) {
   return (
     <div className={`signal ${type}`}>
       <div className="sig-top">
-        <span className="sig-company">{s.company}</span>
+        {s.employer_id != null ? (
+          <Link className="sig-company link" href={`/employer/${s.employer_id}`}>
+            {s.company}
+          </Link>
+        ) : (
+          <span className="sig-company">{s.company}</span>
+        )}
         <span className={`badge ${type}`}>
           {type === "risk" ? <AlertIcon /> : type === "growth" ? <TrendIcon /> : <PulseIcon />}
           {type}
@@ -329,14 +335,14 @@ function Watchlist({
             {firms.map((e) => {
               const st = statusByEmployer.get(e.id) ?? "none";
               return (
-                <div className="emp" key={e.id}>
+                <Link className="emp emp-link" key={e.id} href={`/employer/${e.id}`}>
                   <span className={`dot ${st}`} />
                   <div className="info">
                     <div className="name">{e.name}</div>
                     {e.sector && <div className="sector">{e.sector}</div>}
                   </div>
                   <span className={`status ${st}`}>{statusLabel(st)}</span>
-                </div>
+                </Link>
               );
             })}
           </div>

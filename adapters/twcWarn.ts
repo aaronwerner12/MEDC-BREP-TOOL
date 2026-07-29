@@ -63,9 +63,9 @@ const fmtDate = (s: string) => (s ? s.slice(0, 10) : "");
 const slug = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
-// Pure mapping: filter WARN rows to McKinney / Collin County or a watchlist
-// employer match, and map each to a NormalizedSignal. Exported so it can be
-// tested offline against sample rows without hitting the network.
+// Pure mapping: filter WARN rows to McKinney (city) or a watchlist employer
+// match, and map each to a NormalizedSignal. Exported so it can be tested
+// offline against sample rows without hitting the network.
 export function mapWarnNotices(rows: Row[], employers: EmployerRow[]): NormalizedSignal[] {
   const out: NormalizedSignal[] = [];
 
@@ -80,11 +80,12 @@ export function mapWarnNotices(rows: Row[], employers: EmployerRow[]): Normalize
     const noticeDate = fmtDate(pick(r, NOTICE_DATE_KEYS));
     const effectiveDate = fmtDate(pick(r, EFFECTIVE_DATE_KEYS));
 
-    // Keep a notice only if it is in our footprint or names a watchlist employer.
+    // Keep a notice only if it is in McKinney or names a watchlist employer.
+    // Neighboring Collin County cities (Plano, Frisco, Allen, ...) are excluded
+    // unless the employer is on the McKinney watchlist.
     const inMcKinney = /mckinney/i.test(city);
-    const inCollin = /collin/i.test(county);
     const match = matchEmployer(company, employers);
-    if (!inMcKinney && !inCollin && !match) continue;
+    if (!inMcKinney && !match) continue;
 
     const location =
       [city, county && `${county} County`].filter(Boolean).join(", ") || "Texas";

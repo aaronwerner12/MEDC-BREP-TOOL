@@ -1,4 +1,5 @@
 import { sql } from "@/lib/db";
+import { ensureSchema } from "@/lib/setup";
 import { markHandled } from "./actions";
 
 // Reads live Neon data, so never prerender at build time.
@@ -65,6 +66,24 @@ async function loadDesk(): Promise<DeskData> {
   if (!process.env.DATABASE_URL) return { state: "unconfigured" };
 
   try {
+    return await readDesk();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Self-heal: if the tables are missing, create + seed them once, then retry.
+    if (/relation .* does not exist/i.test(msg)) {
+      try {
+        await ensureSchema();
+        return await readDesk();
+      } catch (err2) {
+        return { state: "error", message: err2 instanceof Error ? err2.message : String(err2) };
+      }
+    }
+    return { state: "error", message: msg };
+  }
+}
+
+async function readDesk(): Promise<DeskData> {
+  {
     const signals = (await sql`
       select s.id, s.employer_id,
              coalesce(
@@ -109,8 +128,6 @@ async function loadDesk(): Promise<DeskData> {
     };
 
     return { state: "ok", signals, employers, statusByEmployer, kpis };
-  } catch (err) {
-    return { state: "error", message: err instanceof Error ? err.message : String(err) };
   }
 }
 

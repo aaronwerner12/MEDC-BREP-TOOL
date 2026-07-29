@@ -1,9 +1,12 @@
 import { sql } from "@/lib/db";
 import { ensureSchema } from "@/lib/setup";
-import { markHandled } from "./actions";
+import { markHandled, pullFeeds } from "./actions";
+import { PullButton } from "./pull-button";
 
 // Reads live Neon data, so never prerender at build time.
 export const dynamic = "force-dynamic";
+// Feed pulls score each item with Claude, so allow up to 60s.
+export const maxDuration = 60;
 
 type SigType = "risk" | "growth" | "neutral";
 
@@ -165,9 +168,18 @@ export default async function Desk() {
         </div>
         <div className="spacer" />
         {data.state === "ok" && (
-          <span className="pill">
-            <PulseIcon /> {data.kpis.outreach} open signal{data.kpis.outreach === 1 ? "" : "s"}
-          </span>
+          <div className="head-actions">
+            <span className="pill">
+              <PulseIcon /> {data.kpis.outreach} open signal{data.kpis.outreach === 1 ? "" : "s"}
+            </span>
+            {process.env.ANTHROPIC_API_KEY ? (
+              <form action={pullFeeds}>
+                <PullButton />
+              </form>
+            ) : (
+              <span className="hint">Set ANTHROPIC_API_KEY in Vercel to pull feeds</span>
+            )}
+          </div>
         )}
       </header>
 

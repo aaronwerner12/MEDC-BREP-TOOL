@@ -102,6 +102,36 @@ a {
   font-weight: 600;
   letter-spacing: 0.3px;
 }
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.head-actions .hint {
+  color: var(--sun-ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+.btn-primary {
+  border: 1px solid var(--navy);
+  background: var(--navy);
+  color: #eaf1f6;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.btn-primary:hover {
+  background: #1d3f5c;
+}
+.btn-primary:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
 
 /* KPI tiles --------------------------------------------------------------- */
 .kpis {

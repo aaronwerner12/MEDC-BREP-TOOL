@@ -71,6 +71,11 @@ export async function ensureSchema(): Promise<SetupStep[]> {
   await run("create unique index employers_name_key", () => sql`
     create unique index if not exists employers_name_key on employers (name)`);
 
+  await run("add employer briefing columns", () => sql`
+    alter table employers
+      add column if not exists brief text,
+      add column if not exists brief_at timestamptz`);
+
   await run("seed top bands (1,000+ / 500+)", () => sql`
     insert into employers (name, aliases, band, sector) values
       ('Raytheon Intelligence & Space', array['Raytheon','RTX','RTX Corporation','Raytheon Company'], '1,000+', 'Defense electronics'),

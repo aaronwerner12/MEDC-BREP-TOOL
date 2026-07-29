@@ -3,6 +3,7 @@
 import { sql } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { runAllFeeds } from "@/lib/pipeline";
+import { generateEmployerBrief, type BriefSignal } from "@/lib/brief";
 
 // Server action: mark a signal handled so it drops out of the open queue.
 export async function markHandled(formData: FormData) {
@@ -18,4 +19,50 @@ export async function markHandled(formData: FormData) {
 export async function pullFeeds() {
   await runAllFeeds();
   revalidatePath("/");
+}
+
+// Server action: generate and cache a grounded AI briefing for one employer,
+// synthesized only from that employer's own open signals.
+export async function generateBrief(
+  employerId: number
+): Promise<{ ok: boolean; error?: string }> {
+  const emp = (
+    (await sql`select id, name, band, sector from employers where id = ${employerId}`) as {
+      id: number;
+      name: string;
+      band: string | null;
+      sector: string | null;
+    }[]
+  )[0];
+  if (!emp) return { ok: false, error: "Employer not found." };
+
+  const signals = (await sql`
+    select signal_type, category, summary, tier
+    from signals
+    where employer_id = ${employerId} and handled = false
+    order by (tier = 'authoritative') desc, priority desc
+    limit 20
+  `) as { signal_type: string; category: string; summary: string; tier: string }[];
+
+  const briefSignals: BriefSignal[] = signals.map((s) => ({
+    signalType: s.signal_type,
+    category: s.category,
+    summary: s.summary,
+    tier: s.tier,
+  }));
+
+  try {
+    const brief = await generateEmployerBrief({
+      name: emp.name,
+      band: emp.band,
+      sector: emp.sector,
+      signals: briefSignals,
+    });
+    await sql`update employers set brief = ${brief}, brief_at = now() where id = ${employerId}`;
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Briefing failed." };
+  }
+
+  revalidatePath(`/employer/${employerId}`);
+  return { ok: true };
 }

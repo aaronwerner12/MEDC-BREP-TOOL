@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { sql } from "@/lib/db";
 import { BREP_CATEGORIES } from "@/lib/brep";
+import { ensureSchema } from "@/lib/setup";
+import { BriefButton } from "../../brief-button";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +14,8 @@ interface Employer {
   band: string | null;
   sector: string | null;
   aliases: string[];
+  brief: string | null;
+  brief_at: string | null;
 }
 
 interface Signal {
@@ -46,6 +50,28 @@ function fmtDate(iso: string): string {
     : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+async function readEmployer(
+  employerId: number
+): Promise<{ employer?: Employer; signals: Signal[] }> {
+  const employer = (
+    (await sql`
+      select id, name, band, sector, aliases, brief, brief_at
+      from employers where id = ${employerId}
+    `) as Employer[]
+  )[0];
+  if (!employer) return { employer: undefined, signals: [] };
+
+  const signals = (await sql`
+    select id, signal_type, priority, category, summary, recommended_action,
+           talking_point, tier, source, source_url, scored_at, handled
+    from signals
+    where employer_id = ${employerId}
+    order by handled asc, priority desc, scored_at desc
+  `) as Signal[];
+
+  return { employer, signals };
+}
+
 export default async function EmployerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const employerId = Number(id);
@@ -54,27 +80,26 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
     return <NotFound />;
   }
 
-  let employer: Employer | undefined;
-  let signals: Signal[] = [];
+  let result: { employer?: Employer; signals: Signal[] };
   try {
-    employer = (
-      (await sql`
-        select id, name, band, sector, aliases from employers where id = ${employerId}
-      `) as Employer[]
-    )[0];
-    if (employer) {
-      signals = (await sql`
-        select id, signal_type, priority, category, summary, recommended_action,
-               talking_point, tier, source, source_url, scored_at, handled
-        from signals
-        where employer_id = ${employerId}
-        order by handled asc, priority desc, scored_at desc
-      `) as Signal[];
+    result = await readEmployer(employerId);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Self-heal if a table or column is missing (e.g. the brief columns on a
+    // database provisioned before this feature).
+    if (/does not exist/i.test(msg)) {
+      try {
+        await ensureSchema();
+        result = await readEmployer(employerId);
+      } catch {
+        return <NotFound />;
+      }
+    } else {
+      return <NotFound />;
     }
-  } catch {
-    // fall through to not-found / empty
   }
 
+  const { employer, signals } = result;
   if (!employer) return <NotFound />;
 
   const open = signals.filter((s) => !s.handled);
@@ -163,6 +188,27 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
           </div>
         );
       })()}
+
+      {/* AI briefing, grounded in this employer's own signals. */}
+      <div className="brief card">
+        <div className="brief-head">
+          <span className="brief-title">Briefing</span>
+          <div className="brief-actions">
+            {employer.brief_at && (
+              <span className="brief-when">Updated {fmtDate(employer.brief_at)}</span>
+            )}
+            {process.env.ANTHROPIC_API_KEY ? (
+              <BriefButton employerId={employer.id} hasBrief={!!employer.brief} />
+            ) : (
+              <span className="brief-when">Set ANTHROPIC_API_KEY to enable</span>
+            )}
+          </div>
+        </div>
+        <p className={`brief-body ${employer.brief ? "" : "muted"}`}>
+          {employer.brief ??
+            "No briefing yet. Generate one to get a short, grounded read of this employer's current signals."}
+        </p>
+      </div>
 
       {/* Grounded risk / stability read from this employer's actual signals. */}
       <div className="col-head" style={{ marginTop: 24 }}>

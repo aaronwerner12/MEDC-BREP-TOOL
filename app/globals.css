@@ -339,6 +339,46 @@ a {
   color: var(--muted);
   font-weight: 600;
 }
+
+/* Employer AI briefing */
+.brief {
+  padding: 16px 18px;
+  margin-top: 16px;
+  border-left: 5px solid var(--denim);
+}
+.brief-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.brief-title {
+  font-family: "Josefin Sans", ui-sans-serif, sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--denim);
+}
+.brief-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brief-when {
+  color: var(--muted);
+  font-size: 12px;
+}
+.brief-body {
+  margin: 10px 0 0;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.brief-body.muted {
+  color: var(--muted);
+}
 .handled-row {
   display: flex;
   align-items: center;

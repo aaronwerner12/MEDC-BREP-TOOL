@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { sql } from "@/lib/db";
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+// Construct lazily on first use, not at import time, so a build can import this
+// route without RESEND_API_KEY present.
+let _resend: Resend | undefined;
+function resend(): Resend {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY!);
+  return _resend;
+}
 
 function authorized(req: Request) {
   return req.headers.get("authorization") === `Bearer ${process.env.CRON_SECRET}`;
@@ -56,7 +62,7 @@ export async function GET(req: Request) {
     })
     .join("");
 
-  await resend.emails.send({
+  await resend().emails.send({
     from: "Signal Desk <signal-desk@your-domain.org>",
     to: process.env.BRE_LEAD_EMAIL!,
     subject: `McKinney Signal Desk — ${rows.length} new signal${rows.length > 1 ? "s" : ""}`,

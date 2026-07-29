@@ -2,7 +2,15 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { NormalizedSignal, ScoredSignal, SignalType } from "./types";
 import { type EmployerRow, matchEmployer } from "./employers";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+// Construct the client lazily on first use, not at import time, so a build can
+// import routes that pull in the scorer without ANTHROPIC_API_KEY present.
+let _anthropic: Anthropic | undefined;
+function anthropicClient(): Anthropic {
+  if (!_anthropic) {
+    _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+  }
+  return _anthropic;
+}
 
 // Haiku is cheap and fast enough for classification. Swap to a larger model
 // for authoritative-but-legal items if you want extra care on the wording.
@@ -33,7 +41,7 @@ Signal:
 Return ONLY this JSON:
 {"signalType":"risk"|"growth"|"neutral","category":"short label","priority":0-100,"summary":"one factual sentence","recommendedAction":"one specific BRE next step","talkingPoint":"outreach opener or empty string"}`;
 
-  const res = await anthropic.messages.create({
+  const res = await anthropicClient().messages.create({
     model: MODEL,
     max_tokens: 600,
     system: SYSTEM,

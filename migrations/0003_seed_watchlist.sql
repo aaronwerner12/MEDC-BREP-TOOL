@@ -32,6 +32,3 @@ insert into employers (name, aliases, band, sector) values
   ('Kimley-Horn',              array['Kimley-Horn','Kimley Horn'],                         '50+',  'Engineering & planning'),
   ('RMinds',                   array['RMinds'],                                            '50+',  'IT services')
 on conflict (name) do nothing;
-
--- NOTE: two firms in the 250+ band were cut off at the edge of the prototype
--- screenshots and are not yet seeded. Add them here once confirmed.

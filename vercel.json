@@ -1,7 +1,6 @@
 {
   "crons": [
-    { "path": "/api/cron/usaspending", "schedule": "0 6 * * 1" },
-    { "path": "/api/cron/twc-warn", "schedule": "0 11 * * *" },
+    { "path": "/api/cron/all", "schedule": "0 11 * * *" },
     { "path": "/api/cron/digest", "schedule": "0 12 * * *" }
   ]
 }

@@ -114,23 +114,55 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
         </Link>
       </header>
 
-      <div className="emp-status-row">
-        <span className={`status ${status === "none" ? "" : status === "risk" ? "risk" : status === "growth" ? "growth" : "watch"}`}>
-          {status === "risk"
+      {(() => {
+        const statusClass =
+          status === "risk" ? "risk" : status === "growth" ? "growth" : status === "neutral" ? "watch" : "none";
+        const statusText =
+          status === "risk"
             ? "At risk"
             : status === "growth"
             ? "Growing"
             : status === "neutral"
             ? "Watch"
-            : "No signals"}
-        </span>
-        <span className="emp-counts">
-          {open.length} open · {risks.length} risk · {positives.length} growth · {handled.length} handled
-        </span>
-        {employer.aliases?.length > 0 && (
-          <span className="emp-aliases">Also known as: {employer.aliases.join(", ")}</span>
-        )}
-      </div>
+            : "Healthy / quiet";
+        const read =
+          status === "risk"
+            ? `${risks.length} active risk signal${risks.length === 1 ? "" : "s"} — worth a proactive retention touch.`
+            : status === "growth"
+            ? `${positives.length} growth signal${positives.length === 1 ? "" : "s"} — an expansion opportunity to support.`
+            : status === "neutral"
+            ? `${watches.length} item${watches.length === 1 ? "" : "s"} to review before acting.`
+            : "No active signals. Quiet is good — monitoring the BREP indicators below.";
+        return (
+          <div className="health card">
+            <div className="health-main">
+              <span className={`health-status ${statusClass}`}>{statusText}</span>
+              <p className="health-read">{read}</p>
+              {employer!.aliases?.length > 0 && (
+                <p className="emp-aliases">Also known as: {employer!.aliases.join(", ")}</p>
+              )}
+            </div>
+            <div className="health-stats">
+              <div className="hstat">
+                <div className="hnum">{open.length}</div>
+                <div className="hlab">Open signals</div>
+              </div>
+              <div className="hstat">
+                <div className="hnum brick">{risks.length}</div>
+                <div className="hlab">Risk</div>
+              </div>
+              <div className="hstat">
+                <div className="hnum mint">{positives.length}</div>
+                <div className="hlab">Growth</div>
+              </div>
+              <div className="hstat">
+                <div className="hnum">{activeCategories.size}</div>
+                <div className="hlab">Active areas</div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Grounded risk / stability read from this employer's actual signals. */}
       <div className="col-head" style={{ marginTop: 24 }}>

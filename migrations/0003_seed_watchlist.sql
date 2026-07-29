@@ -29,8 +29,9 @@ insert into employers (name, aliases, band, sector) values
   ('Oncor',                    array['Oncor','Oncor Electric Delivery'],                   '50+',  'Electric utility'),
   ('StatLab Medical',          array['StatLab Medical','StatLab'],                         '50+',  'Medical products mfg.'),
   ('Hisun',                    array['Hisun','Hisun Motors'],                              '50+',  'Powersports mfg.'),
-  ('Kimley-Horn',              array['Kimley-Horn','Kimley Horn'],                         '50+',  'Engineering & planning')
+  ('Kimley-Horn',              array['Kimley-Horn','Kimley Horn'],                         '50+',  'Engineering & planning'),
+  ('RMinds',                   array['RMinds'],                                            '50+',  'IT services')
 on conflict (name) do nothing;
 
--- NOTE: three firms in the prototype were cut off at band edges and are not yet
--- seeded (2 in the 250+ band, 1 in the 50+ band). Add them here once confirmed.
+-- NOTE: two firms in the 250+ band were cut off at the edge of the prototype
+-- screenshots and are not yet seeded. Add them here once confirmed.

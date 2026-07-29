@@ -5,6 +5,7 @@ import { loadEmployers, type EmployerRow } from "./employers";
 import type { NormalizedSignal } from "./types";
 import { usaspendingSignals } from "../adapters/usaspending";
 import { twcWarnSignals } from "../adapters/twcWarn";
+import { secEdgarSignals } from "../adapters/secEdgar";
 
 interface FeedDef {
   source: string;
@@ -18,6 +19,7 @@ interface FeedDef {
 const FEEDS: FeedDef[] = [
   { source: "usaspending", run: usaspendingSignals, replaceUnhandled: true },
   { source: "twc_warn", run: twcWarnSignals },
+  { source: "sec_edgar", run: secEdgarSignals },
 ];
 
 export interface FeedResult {

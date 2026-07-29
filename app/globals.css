@@ -132,6 +132,130 @@ a {
   opacity: 0.65;
   cursor: default;
 }
+.navlink {
+  color: var(--denim);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+}
+.navlink:hover {
+  background: #f2f6f9;
+}
+
+/* Sources page ------------------------------------------------------------ */
+.src-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 720px) {
+  .src-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.src-card {
+  padding: 16px 18px;
+}
+.src-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.src-name {
+  font-family: "Josefin Sans", ui-sans-serif, sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+}
+.chip.tier-authoritative {
+  color: var(--denim);
+  background: #eef3f7;
+}
+.chip.tier-indicative {
+  color: var(--sun-ink);
+  background: var(--sun-bg);
+}
+.src-meta {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+.src-detail {
+  color: var(--ink);
+  font-size: 14px;
+  margin: 8px 0 12px;
+}
+.src-covers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.covers-chip {
+  font-size: 11px;
+  color: var(--denim);
+  background: #eef3f7;
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.src-table-wrap {
+  overflow-x: auto;
+  padding: 0;
+}
+.src-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  min-width: 720px;
+}
+.src-table th,
+.src-table td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.src-table th {
+  font-family: "Josefin Sans", ui-sans-serif, sans-serif;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+.src-table td.cat {
+  font-weight: 600;
+  color: var(--navy);
+  white-space: nowrap;
+}
+.src-table td.muted {
+  color: var(--muted);
+}
+.cov {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.cov.live {
+  color: var(--mint-ink);
+  background: var(--mint-bg);
+}
+.cov.planned {
+  color: var(--muted);
+  background: #f0ede5;
+}
+.src-note {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 18px;
+}
 
 /* KPI tiles --------------------------------------------------------------- */
 .kpis {

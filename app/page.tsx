@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { sql } from "@/lib/db";
 import { ensureSchema } from "@/lib/setup";
 import { markHandled, pullFeeds } from "./actions";
@@ -169,6 +170,9 @@ export default async function Desk() {
         <div className="spacer" />
         {data.state === "ok" && (
           <div className="head-actions">
+            <Link className="navlink" href="/sources">
+              Sources
+            </Link>
             <span className="pill">
               <PulseIcon /> {data.kpis.outreach} open signal{data.kpis.outreach === 1 ? "" : "s"}
             </span>

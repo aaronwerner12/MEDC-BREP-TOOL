@@ -166,7 +166,7 @@ export default async function Desk() {
         <div>
           <h1>McKinney Watchtower</h1>
           <div className="tag">
-            <PinIcon /> Business retention &amp; expansion, before they call.
+            Business Retention and Expansion Monitor
           </div>
         </div>
       </header>

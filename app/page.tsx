@@ -246,10 +246,10 @@ function Kpi({
 function SignalCard({ s }: { s: SignalRow }) {
   const type = s.signal_type ?? "neutral";
   const sourceLabel = SOURCE_LABELS[s.source] ?? s.source;
-  const width = Math.max(0, Math.min(100, s.priority));
   return (
-    <div className={`signal ${type}`}>
+    <div className={`signal compact ${type}`}>
       <div className="sig-top">
+        <span className={`sdot ${type}`} />
         {s.employer_id != null ? (
           <Link className="sig-company link" href={`/employer/${s.employer_id}`}>
             {s.company}
@@ -257,51 +257,37 @@ function SignalCard({ s }: { s: SignalRow }) {
         ) : (
           <span className="sig-company">{s.company}</span>
         )}
-        <span className={`badge ${type}`}>
-          {type === "risk" ? <AlertIcon /> : type === "growth" ? <TrendIcon /> : <PulseIcon />}
-          {type}
+        {s.category && <span className="sig-cat">{s.category}</span>}
+        <span className="sig-score" title="priority">
+          {s.priority}
         </span>
+        <form action={markHandled} className="mark-form">
+          <input type="hidden" name="id" value={s.id} />
+          <button className="handle sm" type="submit" title="Mark handled">
+            <CheckIcon />
+          </button>
+        </form>
       </div>
 
+      <div className="sig-body clamp">{s.summary}</div>
+
+      {s.recommended_action && (
+        <div className="move-line">
+          <b>Move:</b> {s.recommended_action}
+        </div>
+      )}
+
       <div className="sig-meta">
-        {s.category && <span className="sig-cat">{s.category}</span>}
         <span className="sig-src">
           {sourceLabel}
           {s.scored_at ? ` · ${fmtDate(s.scored_at)}` : ""}
         </span>
-        <span className="sig-score">{s.priority}</span>
-      </div>
-
-      <div className="bar">
-        <span style={{ width: `${width}%` }} />
-      </div>
-
-      <div className="sig-body">{s.summary}</div>
-
-      {s.recommended_action && (
-        <div className="move">
-          <div className="move-label">Recommended move</div>
-          <div className="move-text">{s.recommended_action}</div>
-        </div>
-      )}
-
-      {s.talking_point && <div className="quote">&ldquo;{s.talking_point}&rdquo;</div>}
-
-      <div className="sig-foot">
-        {s.tier === "indicative" && (
-          <span className="confirm">Indicative — confirm before outreach</span>
-        )}
+        {s.tier === "indicative" && <span className="confirm">confirm first</span>}
         {s.source_url && (
           <a className="src-link" href={s.source_url} target="_blank" rel="noreferrer">
             source
           </a>
         )}
-        <form action={markHandled} className="mark-form">
-          <input type="hidden" name="id" value={s.id} />
-          <button className="handle" type="submit">
-            <CheckIcon /> Mark handled
-          </button>
-        </form>
       </div>
     </div>
   );

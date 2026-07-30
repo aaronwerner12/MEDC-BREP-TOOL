@@ -169,27 +169,6 @@ export default async function Desk() {
             <PinIcon /> Business retention &amp; expansion, before they call.
           </div>
         </div>
-        <div className="spacer" />
-        {data.state === "ok" && (
-          <div className="head-actions">
-            <Link className="navlink" href="/businesses">
-              Businesses
-            </Link>
-            <Link className="navlink" href="/sources">
-              Sources
-            </Link>
-            <span className="pill">
-              <PulseIcon /> {data.kpis.outreach} open signal{data.kpis.outreach === 1 ? "" : "s"}
-            </span>
-            {process.env.ANTHROPIC_API_KEY ? (
-              <form action={pullFeeds}>
-                <PullButton />
-              </form>
-            ) : (
-              <span className="hint">Set ANTHROPIC_API_KEY in Vercel to pull feeds</span>
-            )}
-          </div>
-        )}
       </header>
 
       {data.state === "unconfigured" && <UnconfiguredNotice />}
@@ -197,6 +176,12 @@ export default async function Desk() {
 
       {data.state === "ok" && (
         <>
+          <Banner
+            kpis={data.kpis}
+            top={data.signals[0]}
+            scoringEnabled={!!process.env.ANTHROPIC_API_KEY}
+          />
+
           <section className="kpis">
             <Kpi label="Employers watched" value={data.kpis.employers} icon={<BuildingIcon />} />
             <Kpi label="Active risks" value={data.kpis.risks} tone="risk" icon={<AlertIcon />} />
@@ -218,6 +203,44 @@ export default async function Desk() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function Banner({
+  kpis,
+  top,
+  scoringEnabled,
+}: {
+  kpis: Kpis;
+  top: SignalRow | undefined;
+  scoringEnabled: boolean;
+}) {
+  const lead =
+    kpis.risks > 0 && top
+      ? `${top.company} is your top priority right now (${top.category}).`
+      : kpis.outreach > 0
+      ? `${kpis.outreach} open signal${kpis.outreach === 1 ? "" : "s"} to review across the watchlist.`
+      : "The desk is clear. No open signals right now.";
+
+  return (
+    <div className="banner">
+      <div className="banner-main">
+        <h2>Here&rsquo;s where things stand.</h2>
+        <p>{lead}</p>
+      </div>
+      <div className="banner-actions">
+        <span className="pill">
+          <PulseIcon /> {kpis.outreach} open
+        </span>
+        {scoringEnabled ? (
+          <form action={pullFeeds}>
+            <PullButton />
+          </form>
+        ) : (
+          <span className="hint">Set ANTHROPIC_API_KEY to pull feeds</span>
+        )}
+      </div>
     </div>
   );
 }

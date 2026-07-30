@@ -22,6 +22,15 @@ export async function handleEmployer(formData: FormData) {
   revalidatePath("/");
 }
 
+// Server action: restore a handled signal back into the open queue.
+export async function unhandle(formData: FormData) {
+  const id = Number(formData.get("id"));
+  if (!Number.isFinite(id)) return;
+  await sql`update signals set handled = false where id = ${id}`;
+  revalidatePath("/");
+  revalidatePath("/handled");
+}
+
 // Server action: pull every feed on demand, score each item, and ingest.
 // Same work as the daily /api/cron/all dispatcher, invoked from the dashboard
 // button so no secret or URL is needed.

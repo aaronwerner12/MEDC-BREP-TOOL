@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Sidebar } from "./sidebar";
 
 export const metadata: Metadata = {
   title: "McKinney Signal Desk",
@@ -28,7 +29,12 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <div className="shell">
+          <Sidebar />
+          <div className="content">{children}</div>
+        </div>
+      </body>
     </html>
   );
 }

@@ -1,0 +1,82 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+const ITEMS = [
+  { href: "/", label: "Desk", icon: DeskIcon, match: (p: string) => p === "/" || p.startsWith("/employer") },
+  { href: "/businesses", label: "Firms", icon: FirmsIcon, match: (p: string) => p.startsWith("/businesses") },
+  { href: "/sources", label: "Sources", icon: SourcesIcon, match: (p: string) => p.startsWith("/sources") },
+  { href: "/handled", label: "Handled", icon: HandledIcon, match: (p: string) => p.startsWith("/handled") },
+];
+
+export function Sidebar() {
+  const pathname = usePathname() || "/";
+  return (
+    <nav className="rail">
+      <div className="rail-logo" title="McKinney Signal Desk">
+        <ScanIcon />
+      </div>
+      {ITEMS.map((it) => {
+        const active = it.match(pathname);
+        const Icon = it.icon;
+        return (
+          <Link key={it.href} href={it.href} className={`rail-item ${active ? "active" : ""}`}>
+            <Icon />
+            <span>{it.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+const sp = {
+  width: 20,
+  height: 20,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 2,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+};
+
+function ScanIcon() {
+  return (
+    <svg {...sp} width={22} height={22}>
+      <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+function DeskIcon() {
+  return (
+    <svg {...sp}>
+      <path d="M3 3v18h18" />
+      <path d="M7 14l4-4 3 3 5-6" />
+    </svg>
+  );
+}
+function FirmsIcon() {
+  return (
+    <svg {...sp}>
+      <rect x="4" y="3" width="16" height="18" rx="1" />
+      <path d="M9 7h.01M15 7h.01M9 11h.01M15 11h.01M9 15h6" />
+    </svg>
+  );
+}
+function SourcesIcon() {
+  return (
+    <svg {...sp}>
+      <path d="M4 6h16M4 12h16M4 18h10" />
+    </svg>
+  );
+}
+function HandledIcon() {
+  return (
+    <svg {...sp}>
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}

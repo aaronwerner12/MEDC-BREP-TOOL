@@ -16,13 +16,19 @@ interface Award {
 }
 
 async function fetchAwards(recipient: string): Promise<Award[]> {
+  // Rolling window: only look at award activity from the past two years to now.
+  const now = new Date();
+  const start = new Date(now);
+  start.setFullYear(now.getFullYear() - 2);
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
   const body = {
     subawards: false,
     limit: 100,
     page: 1,
     filters: {
       award_type_codes: ["A", "B", "C", "D"], // contracts
-      time_period: [{ start_date: "2024-01-01", end_date: "2026-12-31" }],
+      time_period: [{ start_date: fmt(start), end_date: fmt(now) }],
       recipient_search_text: [recipient],
       place_of_performance_locations: [COLLIN_COUNTY],
     },

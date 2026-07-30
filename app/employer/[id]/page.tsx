@@ -3,6 +3,7 @@ import { sql } from "@/lib/db";
 import { BREP_CATEGORIES } from "@/lib/brep";
 import { ensureSchema } from "@/lib/setup";
 import { BriefButton } from "../../brief-button";
+import { ProfileButton } from "../../profile-button";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,8 @@ interface Employer {
   aliases: string[];
   brief: string | null;
   brief_at: string | null;
+  profile: string | null;
+  profile_at: string | null;
 }
 
 interface Signal {
@@ -56,7 +59,7 @@ async function readEmployer(
 ): Promise<{ employer?: Employer; signals: Signal[] }> {
   const employer = (
     (await sql`
-      select id, name, band, sector, aliases, brief, brief_at
+      select id, name, band, sector, aliases, brief, brief_at, profile, profile_at
       from employers where id = ${employerId}
     `) as Employer[]
   )[0];
@@ -189,6 +192,38 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
           </div>
         );
       })()}
+
+      {/* Web-sourced company profile. */}
+      <div className="brief card" style={{ borderLeftColor: "var(--navy)" }}>
+        <div className="brief-head">
+          <span className="brief-title">Company profile</span>
+          <div className="brief-actions">
+            {employer.profile_at && (
+              <span className="brief-when">Updated {fmtDate(employer.profile_at)}</span>
+            )}
+            {process.env.ANTHROPIC_API_KEY ? (
+              <ProfileButton employerId={employer.id} hasProfile={!!employer.profile} />
+            ) : (
+              <span className="brief-when">Set ANTHROPIC_API_KEY to enable</span>
+            )}
+          </div>
+        </div>
+        {employer.profile ? (
+          <>
+            <p className="brief-body" style={{ whiteSpace: "pre-line" }}>
+              {employer.profile}
+            </p>
+            <p className="brief-when" style={{ marginTop: 8 }}>
+              From public web sources. Verify before using in any public document.
+            </p>
+          </>
+        ) : (
+          <p className="brief-body muted">
+            No profile yet. Look up public business info (location, employees, executives,
+            ownership) from the web.
+          </p>
+        )}
+      </div>
 
       {/* AI briefing, grounded in this employer's own signals. */}
       <div className="brief card">

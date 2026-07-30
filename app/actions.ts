@@ -4,6 +4,7 @@ import { sql } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { runAllFeeds } from "@/lib/pipeline";
 import { generateEmployerBrief, type BriefSignal } from "@/lib/brief";
+import { generateCompanyProfile } from "@/lib/profile";
 
 // Server action: mark a signal handled so it drops out of the open queue.
 export async function markHandled(formData: FormData) {
@@ -39,6 +40,35 @@ export async function addBusiness(input: {
   }
   revalidatePath("/businesses");
   revalidatePath("/");
+  return { ok: true };
+}
+
+// Server action: fetch and cache a web-sourced company profile for one
+// employer (location, employees, executives, ownership).
+export async function generateProfile(
+  employerId: number
+): Promise<{ ok: boolean; error?: string }> {
+  const emp = (
+    (await sql`select id, name, sector from employers where id = ${employerId}`) as {
+      id: number;
+      name: string;
+      sector: string | null;
+    }[]
+  )[0];
+  if (!emp) return { ok: false, error: "Employer not found." };
+
+  try {
+    const profile = await generateCompanyProfile({
+      name: emp.name,
+      sector: emp.sector,
+      city: "McKinney, Texas",
+    });
+    await sql`update employers set profile = ${profile}, profile_at = now() where id = ${employerId}`;
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Profile lookup failed." };
+  }
+
+  revalidatePath(`/employer/${employerId}`);
   return { ok: true };
 }
 

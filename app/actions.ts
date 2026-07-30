@@ -14,6 +14,14 @@ export async function markHandled(formData: FormData) {
   revalidatePath("/");
 }
 
+// Server action: mark every open signal for one employer handled at once.
+export async function handleEmployer(formData: FormData) {
+  const id = Number(formData.get("employerId"));
+  if (!Number.isFinite(id)) return;
+  await sql`update signals set handled = true where employer_id = ${id} and handled = false`;
+  revalidatePath("/");
+}
+
 // Server action: pull every feed on demand, score each item, and ingest.
 // Same work as the daily /api/cron/all dispatcher, invoked from the dashboard
 // button so no secret or URL is needed.

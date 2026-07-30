@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { sql } from "@/lib/db";
 import { ensureSchema } from "@/lib/setup";
-import { markHandled, pullFeeds } from "./actions";
+import { handleEmployer, pullFeeds } from "./actions";
 import { PullButton } from "./pull-button";
 
 // Reads live Neon data, so never prerender at build time.
@@ -207,11 +207,8 @@ export default async function Desk() {
           <div className="grid">
             <main>
               <div className="col-head">Action queue · by priority</div>
-              {data.signals.length === 0 ? (
-                <div className="empty">No open signals. The desk is clear.</div>
-              ) : (
-                data.signals.map((s) => <SignalCard key={s.id} s={s} />)
-              )}
+              <Legend />
+              <ActionQueue signals={data.signals} />
             </main>
 
             <aside>
@@ -246,52 +243,122 @@ function Kpi({
   );
 }
 
-function SignalCard({ s }: { s: SignalRow }) {
-  const type = s.signal_type ?? "neutral";
-  const sourceLabel = SOURCE_LABELS[s.source] ?? s.source;
+interface QueueGroup {
+  key: string;
+  employerId: number | null;
+  company: string;
+  status: SigType;
+  count: number;
+  topPriority: number;
+  categories: string[];
+  topSummary: string;
+}
+
+const SEV: Record<SigType, number> = { risk: 3, growth: 2, neutral: 1 };
+
+// One row per company: collapse a company's many signals into a single entry
+// carrying its most-severe status, reason count, and top priority.
+function groupSignals(signals: SignalRow[]): QueueGroup[] {
+  const buckets = new Map<string, SignalRow[]>();
+  for (const s of signals) {
+    const key = s.employer_id != null ? `e${s.employer_id}` : `n:${s.company.toLowerCase()}`;
+    const arr = buckets.get(key);
+    if (arr) arr.push(s);
+    else buckets.set(key, [s]);
+  }
+
+  const groups: QueueGroup[] = [];
+  for (const [key, arr] of buckets) {
+    const top = arr.reduce((a, b) => (b.priority > a.priority ? b : a));
+    const status = arr.reduce<SigType>(
+      (acc, s) => (SEV[s.signal_type] > SEV[acc] ? s.signal_type : acc),
+      "neutral"
+    );
+    groups.push({
+      key,
+      employerId: top.employer_id,
+      company: top.company,
+      status,
+      count: arr.length,
+      topPriority: Math.max(...arr.map((s) => s.priority)),
+      categories: [...new Set(arr.map((s) => s.category).filter(Boolean))],
+      topSummary: top.summary,
+    });
+  }
+
+  groups.sort((a, b) => SEV[b.status] - SEV[a.status] || b.topPriority - a.topPriority);
+  return groups;
+}
+
+function ActionQueue({ signals }: { signals: SignalRow[] }) {
+  const groups = groupSignals(signals);
+  if (groups.length === 0) {
+    return <div className="empty">No open signals. The desk is clear.</div>;
+  }
   return (
-    <div className={`signal compact ${type}`}>
+    <>
+      {groups.map((g) => (
+        <QueueGroupRow key={g.key} g={g} />
+      ))}
+    </>
+  );
+}
+
+function QueueGroupRow({ g }: { g: QueueGroup }) {
+  return (
+    <div className={`signal compact ${g.status}`}>
       <div className="sig-top">
-        <span className={`sdot ${type}`} />
-        {s.employer_id != null ? (
-          <Link className="sig-company link" href={`/employer/${s.employer_id}`}>
-            {s.company}
+        <span className={`sdot ${g.status}`} />
+        {g.employerId != null ? (
+          <Link className="sig-company link" href={`/employer/${g.employerId}`}>
+            {g.company}
           </Link>
         ) : (
-          <span className="sig-company">{s.company}</span>
+          <span className="sig-company">{g.company}</span>
         )}
-        {s.category && <span className="sig-cat">{s.category}</span>}
-        <span className="sig-score" title="priority">
-          {s.priority}
+        {g.count > 1 && <span className="reasons-chip">{g.count} reasons</span>}
+        <span className="sig-score" title="top priority">
+          {g.topPriority}
         </span>
-        <form action={markHandled} className="mark-form">
-          <input type="hidden" name="id" value={s.id} />
-          <button className="handle sm" type="submit" title="Mark handled">
-            <CheckIcon />
-          </button>
-        </form>
+        {g.employerId != null && (
+          <form action={handleEmployer} className="mark-form">
+            <input type="hidden" name="employerId" value={g.employerId} />
+            <button className="handle sm" type="submit" title="Mark all handled">
+              <CheckIcon />
+            </button>
+          </form>
+        )}
       </div>
 
-      <div className="sig-body clamp">{s.summary}</div>
-
-      {s.recommended_action && (
-        <div className="move-line">
-          <b>Move:</b> {s.recommended_action}
-        </div>
-      )}
+      <div className="sig-body clamp">{g.topSummary}</div>
 
       <div className="sig-meta">
-        <span className="sig-src">
-          {sourceLabel}
-          {s.scored_at ? ` · ${fmtDate(s.scored_at)}` : ""}
-        </span>
-        {s.tier === "indicative" && <span className="confirm">confirm first</span>}
-        {s.source_url && (
-          <a className="src-link" href={s.source_url} target="_blank" rel="noreferrer">
-            source
-          </a>
+        {g.categories.length > 0 && (
+          <span className="sig-src">{g.categories.slice(0, 3).join(" · ")}</span>
+        )}
+        {g.employerId != null && (
+          <Link className="src-link" href={`/employer/${g.employerId}`}>
+            view all reasons →
+          </Link>
         )}
       </div>
+    </div>
+  );
+}
+
+function Legend() {
+  return (
+    <div className="legend">
+      <span className="legend-item">
+        <span className="sdot risk" /> Risk — retention concern
+      </span>
+      <span className="legend-item">
+        <span className="sdot growth" /> Growth — expansion to support
+      </span>
+      <span className="legend-item">
+        <span className="sdot neutral" /> Watch — review, often needs confirming
+      </span>
+      <span className="legend-note">Number is priority (0 to 100).</span>
     </div>
   );
 }

@@ -21,6 +21,27 @@ export async function pullFeeds() {
   revalidatePath("/");
 }
 
+// Server action: add a business to the tracked McKinney directory.
+export async function addBusiness(input: {
+  name: string;
+  sector?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const name = (input.name ?? "").trim();
+  if (!name) return { ok: false, error: "Name is required." };
+  const sector = (input.sector ?? "").trim() || null;
+  try {
+    await sql`
+      insert into employers (name, sector, segment, active)
+      values (${name}, ${sector}, 'mckinney', true)
+      on conflict (name) do nothing`;
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not add business." };
+  }
+  revalidatePath("/businesses");
+  revalidatePath("/");
+  return { ok: true };
+}
+
 // Server action: generate and cache a grounded AI briefing for one employer,
 // synthesized only from that employer's own open signals.
 export async function generateBrief(

@@ -76,6 +76,20 @@ export async function ensureSchema(): Promise<SetupStep[]> {
       add column if not exists brief text,
       add column if not exists brief_at timestamptz`);
 
+  await run("add employer segment + profile columns", () => sql`
+    alter table employers
+      add column if not exists segment    text default 'medc',
+      add column if not exists profile    text,
+      add column if not exists profile_at timestamptz`);
+
+  await run("seed broader McKinney directory", () => sql`
+    insert into employers (name, aliases, sector, segment) values
+      ('McKinney ISD', array['McKinney Independent School District','MISD'], 'Public education', 'mckinney'),
+      ('City of McKinney', array['City of McKinney'], 'Government', 'mckinney'),
+      ('Collin College', array['Collin College','Collin County Community College'], 'Higher education', 'mckinney'),
+      ('Medical City McKinney', array['Medical City McKinney','HCA Healthcare'], 'Healthcare', 'mckinney')
+    on conflict (name) do nothing`);
+
   await run("seed top bands (1,000+ / 500+)", () => sql`
     insert into employers (name, aliases, band, sector) values
       ('Raytheon Intelligence & Space', array['Raytheon','RTX','RTX Corporation','Raytheon Company'], '1,000+', 'Defense electronics'),

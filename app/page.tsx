@@ -75,8 +75,8 @@ async function loadDesk(): Promise<DeskData> {
     return await readDesk();
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    // Self-heal: if the tables are missing, create + seed them once, then retry.
-    if (/relation .* does not exist/i.test(msg)) {
+    // Self-heal: if a table or column is missing, create/upgrade the schema once, then retry.
+    if (/does not exist/i.test(msg)) {
       try {
         await ensureSchema();
         return await readDesk();
@@ -111,7 +111,7 @@ async function readDesk(): Promise<DeskData> {
     const employers = (await sql`
       select id, name, band, sector
       from employers
-      where active = true
+      where active = true and coalesce(segment, 'medc') = 'medc'
       order by name
     `) as EmployerRow[];
 
@@ -172,6 +172,9 @@ export default async function Desk() {
         <div className="spacer" />
         {data.state === "ok" && (
           <div className="head-actions">
+            <Link className="navlink" href="/businesses">
+              Businesses
+            </Link>
             <Link className="navlink" href="/sources">
               Sources
             </Link>

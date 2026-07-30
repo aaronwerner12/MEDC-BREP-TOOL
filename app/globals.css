@@ -563,6 +563,53 @@ a {
   border-radius: 7px;
   flex: none;
 }
+
+/* Business directory */
+.paste-input {
+  font: inherit;
+  font-size: 14px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--navy);
+  width: 100%;
+}
+.paste-input:focus {
+  outline: none;
+  border-color: var(--denim);
+}
+.add-biz {
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.add-biz-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.add-biz-row .paste-input {
+  flex: 1;
+  min-width: 160px;
+  width: auto;
+}
+.add-biz-row .btn-primary {
+  flex: none;
+}
+.add-biz-msg {
+  margin-top: 8px;
+  color: var(--mint-ink);
+  font-size: 13px;
+}
+.biz-search {
+  margin-bottom: 4px;
+}
+.biz-list .emp .chip.band {
+  margin-left: auto;
+}
+.biz-list .emp .status {
+  margin-left: 12px;
+}
 .signal.risk {
   border-left-color: var(--brick);
 }

@@ -3,7 +3,7 @@ import "./globals.css";
 import { Sidebar } from "./sidebar";
 
 export const metadata: Metadata = {
-  title: "McKinney Signal Desk",
+  title: "McKinney Watchtower",
   description:
     "Business retention and expansion early-warning system for the City of McKinney economic development team.",
 };

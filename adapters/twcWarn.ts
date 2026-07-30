@@ -63,6 +63,9 @@ const fmtDate = (s: string) => (s ? s.slice(0, 10) : "");
 const slug = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
+// Only surface notices from roughly the past two years.
+const MAX_AGE_DAYS = 730;
+
 // Pure mapping: filter WARN rows to McKinney (city) or a watchlist employer
 // match, and map each to a NormalizedSignal. Exported so it can be tested
 // offline against sample rows without hitting the network.
@@ -79,6 +82,16 @@ export function mapWarnNotices(rows: Row[], employers: EmployerRow[]): Normalize
     const count = pick(r, COUNT_KEYS);
     const noticeDate = fmtDate(pick(r, NOTICE_DATE_KEYS));
     const effectiveDate = fmtDate(pick(r, EFFECTIVE_DATE_KEYS));
+
+    // Only the past ~2 years. The dataset goes back to 2020, so drop anything
+    // older (or undated, since we cannot confirm it is recent).
+    const times = [noticeDate, effectiveDate]
+      .map((d) => (d ? new Date(d).getTime() : NaN))
+      .filter((t) => !Number.isNaN(t));
+    const mostRecent = times.length ? Math.max(...times) : NaN;
+    if (Number.isNaN(mostRecent) || (Date.now() - mostRecent) / 86_400_000 > MAX_AGE_DAYS) {
+      continue;
+    }
 
     // Keep a notice only if it is in McKinney or names a watchlist employer.
     // Neighboring Collin County cities (Plano, Frisco, Allen, ...) are excluded
@@ -114,8 +127,6 @@ export function mapWarnNotices(rows: Row[], employers: EmployerRow[]): Normalize
 }
 
 async function fetchWarnRows(): Promise<Row[]> {
-  // Current-calendar-year dataset is small; 5000 is a comfortable ceiling.
-  const url = `${RESOURCE_ENDPOINT}?$limit=5000`;
   const headers: Record<string, string> = {
     "User-Agent": "McKinneySignalDesk/1.0 (+https://visitmckinney.com)",
     Accept: "application/json",
@@ -124,7 +135,15 @@ async function fetchWarnRows(): Promise<Row[]> {
   const token = process.env.SOCRATA_APP_TOKEN;
   if (token) headers["X-App-Token"] = token;
 
-  const res = await fetch(url, { headers });
+  // The dataset spans multiple years, so fetch newest-first to be sure recent
+  // notices are included (the code-side filter then keeps only the past 2
+  // years). If the sort column name is ever wrong, fall back to an unordered
+  // pull rather than failing the whole feed.
+  const ordered = `${RESOURCE_ENDPOINT}?$limit=5000&$order=notice_date DESC`;
+  let res = await fetch(ordered, { headers });
+  if (!res.ok) {
+    res = await fetch(`${RESOURCE_ENDPOINT}?$limit=5000`, { headers });
+  }
   if (!res.ok) throw new Error(`TWC WARN ${res.status}`);
   return (await res.json()) as Row[];
 }

@@ -70,6 +70,7 @@ const SOURCE_LABELS: Record<string, string> = {
   permits: "Permits",
   costar: "CoStar",
   epa_echo: "EPA / OSHA ECHO",
+  news: "News",
   manual: "Pasted",
 };
 

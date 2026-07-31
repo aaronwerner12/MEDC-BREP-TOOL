@@ -39,6 +39,22 @@ export const SOURCES: SourceDef[] = [
       "Recent 8-K / 10-K / 10-Q filings for public watchlist employers (Globe Life, Independent Financial / SouthState, and others).",
   },
   {
+    name: "Web news scan",
+    status: "live",
+    tier: "indicative",
+    cadence: "On demand",
+    covers: [
+      "Employment",
+      "Ownership / M&A",
+      "Leadership Stability",
+      "Revenue / Financial Health",
+      "Expansion Plans",
+      "Legal / Litigation",
+    ],
+    detail:
+      "Per-company web search (via Claude) for recent significant news: layoffs, expansions, M&A, leadership, results, legal/regulatory. Cited sources; confirm before outreach.",
+  },
+  {
     name: "CoStar (lease alerts)",
     status: "live",
     tier: "indicative",

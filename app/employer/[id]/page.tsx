@@ -5,6 +5,7 @@ import { ensureSchema } from "@/lib/setup";
 import { computeRiskIndex, trendArrow, type RiskLevel } from "@/lib/risk";
 import { BriefButton } from "../../brief-button";
 import { ProfileButton } from "../../profile-button";
+import { NewsButton } from "../../news-button";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ const SOURCE_LABELS: Record<string, string> = {
   permits: "Permits",
   costar: "CoStar",
   epa_echo: "EPA / OSHA ECHO",
+  news: "News",
   manual: "Pasted",
 };
 
@@ -285,6 +287,24 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
         <p className={`brief-body ${employer.brief ? "" : "muted"}`}>
           {employer.brief ??
             "No briefing yet. Generate one to get a short, grounded read of this employer's current signals."}
+        </p>
+      </div>
+
+      {/* Web news scan. Results land as indicative signals below and in the queue. */}
+      <div className="brief card" style={{ borderLeftColor: "var(--sunflower)" }}>
+        <div className="brief-head">
+          <span className="brief-title">Recent news</span>
+          <div className="brief-actions">
+            {process.env.ANTHROPIC_API_KEY ? (
+              <NewsButton employerId={employer.id} />
+            ) : (
+              <span className="brief-when">Set ANTHROPIC_API_KEY to enable</span>
+            )}
+          </div>
+        </div>
+        <p className="brief-body muted">
+          Scan the web for recent significant news. Results appear as indicative signals in the
+          queue and below (confirm before outreach).
         </p>
       </div>
 

@@ -5,6 +5,11 @@ import { revalidatePath } from "next/cache";
 import { runAllFeeds } from "@/lib/pipeline";
 import { generateEmployerBrief, type BriefSignal } from "@/lib/brief";
 import { generateCompanyProfile } from "@/lib/profile";
+import { fetchCompanyNews } from "@/lib/news";
+import { scoreSignal } from "@/lib/score";
+import { ingestSignal } from "@/lib/ingest";
+import type { NormalizedSignal } from "@/lib/types";
+import { loadEmployers } from "@/lib/employers";
 
 // Server action: mark a signal handled so it drops out of the open queue.
 export async function markHandled(formData: FormData) {
@@ -58,6 +63,56 @@ export async function addBusiness(input: {
   revalidatePath("/businesses");
   revalidatePath("/");
   return { ok: true };
+}
+
+const slugify = (s: string) =>
+  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 90);
+
+// Server action: scan the web for recent news about an employer and ingest each
+// significant item as an indicative signal.
+export async function scanNews(
+  employerId: number
+): Promise<{ ok: boolean; added?: number; found?: number; error?: string }> {
+  const emp = (
+    (await sql`select id, name, sector from employers where id = ${employerId}`) as {
+      id: number;
+      name: string;
+      sector: string | null;
+    }[]
+  )[0];
+  if (!emp) return { ok: false, error: "Employer not found." };
+
+  let items;
+  try {
+    items = await fetchCompanyNews({ name: emp.name, sector: emp.sector });
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "News lookup failed." };
+  }
+
+  const employers = await loadEmployers();
+  let added = 0;
+  for (const it of items) {
+    const sig: NormalizedSignal = {
+      source: "news",
+      tier: "indicative",
+      externalId: `news:${employerId}:${slugify(it.url || it.headline)}`,
+      companyName: emp.name,
+      observedText: `${it.headline}. ${it.summary}`.trim(),
+      sourceUrl: it.url || undefined,
+      eventDate: it.date || undefined,
+      raw: { news: true, ...it },
+    };
+    try {
+      const scored = await scoreSignal(sig, employers);
+      if (await ingestSignal(scored)) added++;
+    } catch {
+      // skip an item that fails to score/ingest
+    }
+  }
+
+  revalidatePath(`/employer/${employerId}`);
+  revalidatePath("/");
+  return { ok: true, added, found: items.length };
 }
 
 // Server action: fetch and cache a web-sourced company profile for one

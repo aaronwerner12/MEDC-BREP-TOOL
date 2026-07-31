@@ -9,6 +9,7 @@ import {
   riskLevelRead,
   FRESHNESS_MONTHS,
 } from "@/lib/risk";
+import { aiEnabled } from "@/lib/ai";
 import { parseProfile } from "@/lib/profile";
 import { parseBrief } from "@/lib/brief";
 import { BriefButton } from "../../brief-button";
@@ -123,6 +124,8 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
 
   const { employer, signals } = result;
   if (!employer) return <NotFound />;
+
+  const ai = aiEnabled();
 
   const handled = signals.filter((s) => s.handled);
   const openAll = signals.filter((s) => !s.handled);
@@ -251,10 +254,10 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
             {employer.profile_at && (
               <span className="brief-when">Updated {fmtDate(employer.profile_at)}</span>
             )}
-            {process.env.ANTHROPIC_API_KEY ? (
+            {ai ? (
               <ProfileButton employerId={employer.id} hasProfile={!!employer.profile} />
             ) : (
-              <span className="brief-when">Set ANTHROPIC_API_KEY to enable</span>
+              <span className="brief-when">AI features are off</span>
             )}
           </div>
         </div>
@@ -299,10 +302,10 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
             {employer.brief_at && (
               <span className="brief-when">Updated {fmtDate(employer.brief_at)}</span>
             )}
-            {process.env.ANTHROPIC_API_KEY ? (
+            {ai ? (
               <BriefButton employerId={employer.id} hasBrief={!!employer.brief} />
             ) : (
-              <span className="brief-when">Set ANTHROPIC_API_KEY to enable</span>
+              <span className="brief-when">AI features are off</span>
             )}
           </div>
         </div>
@@ -335,10 +338,10 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
         <div className="brief-head">
           <span className="brief-title">Recent news</span>
           <div className="brief-actions">
-            {process.env.ANTHROPIC_API_KEY ? (
+            {ai ? (
               <NewsButton employerId={employer.id} />
             ) : (
-              <span className="brief-when">Set ANTHROPIC_API_KEY to enable</span>
+              <span className="brief-when">AI features are off</span>
             )}
           </div>
         </div>

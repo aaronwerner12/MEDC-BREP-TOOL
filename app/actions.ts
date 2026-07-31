@@ -9,6 +9,7 @@ import { ingestEmployerNews } from "@/lib/newsPipeline";
 import { discoverMcKinneyEmployers } from "@/lib/discover";
 import { loadEmployers } from "@/lib/employers";
 import { ensureSchema } from "@/lib/setup";
+import { aiEnabled, aiDisabledReason } from "@/lib/ai";
 
 // Server action: mark a signal handled so it drops out of the open queue.
 export async function markHandled(formData: FormData) {
@@ -84,6 +85,7 @@ export async function removeBusiness(id: number): Promise<{ ok: boolean; error?:
 export async function scanNews(
   employerId: number
 ): Promise<{ ok: boolean; added?: number; error?: string }> {
+  if (!aiEnabled()) return { ok: false, error: aiDisabledReason() };
   const emp = (
     (await sql`select id, name, sector from employers where id = ${employerId}`) as {
       id: number;
@@ -126,6 +128,7 @@ export async function discoverEmployers(): Promise<{
   found?: number;
   error?: string;
 }> {
+  if (!aiEnabled()) return { ok: false, error: aiDisabledReason() };
   try {
     await ensureSchema();
   } catch {
@@ -167,6 +170,7 @@ export async function discoverEmployers(): Promise<{
 export async function generateProfile(
   employerId: number
 ): Promise<{ ok: boolean; error?: string }> {
+  if (!aiEnabled()) return { ok: false, error: aiDisabledReason() };
   const emp = (
     (await sql`select id, name, sector from employers where id = ${employerId}`) as {
       id: number;
@@ -221,6 +225,7 @@ export async function generateProfile(
 export async function generateBrief(
   employerId: number
 ): Promise<{ ok: boolean; error?: string }> {
+  if (!aiEnabled()) return { ok: false, error: aiDisabledReason() };
   const emp = (
     (await sql`select id, name, band, sector from employers where id = ${employerId}`) as {
       id: number;

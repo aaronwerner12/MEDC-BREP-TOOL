@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { runAllFeeds } from "@/lib/pipeline";
 import { scanNewsBatch } from "@/lib/newsPipeline";
+import { aiEnabled } from "@/lib/ai";
 
 export const maxDuration = 60;
 
@@ -19,9 +20,9 @@ export async function GET(req: Request) {
   if (!authorized(req)) return new NextResponse("Unauthorized", { status: 401 });
   const ran = await runAllFeeds();
 
-  // Bounded daily news scan (only when web search / Anthropic is configured).
+  // Bounded daily news scan (only when the optional AI features are enabled).
   let news: { scanned: number; added: number } | { error: string } | null = null;
-  if (process.env.ANTHROPIC_API_KEY) {
+  if (aiEnabled()) {
     try {
       news = await scanNewsBatch(NEWS_BATCH);
     } catch (e) {

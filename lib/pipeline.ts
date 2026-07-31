@@ -1,5 +1,5 @@
 import { sql } from "./db";
-import { scoreSignal } from "./score";
+import { scoreSignalRules } from "./rulesScore";
 import { ingestSignal } from "./ingest";
 import { loadEmployers, type EmployerRow } from "./employers";
 import type { NormalizedSignal, ScoredSignal } from "./types";
@@ -29,11 +29,10 @@ const FEEDS: FeedDef[] = [
   { source: "epa_echo", run: echoSignals, replaceUnhandled: true },
 ];
 
-// Keep a single pull well within the serverless function time limit: cap how
-// many items each feed contributes and score them concurrently rather than one
-// at a time.
+// Cap how many items each feed contributes so a single pull stays well within
+// the serverless time limit. Scoring is now rules-based (synchronous, free), so
+// there is no per-item network call to bound.
 const MAX_PER_FEED = 15;
-const SCORING_CONCURRENCY = 8;
 
 export interface FeedResult {
   source: string;
@@ -43,33 +42,9 @@ export interface FeedResult {
   error?: string;
 }
 
-// Score many signals with a bounded number of concurrent Claude calls. A single
-// failing score is skipped (left undefined) rather than aborting the whole run.
-async function scoreConcurrently(
-  sigs: NormalizedSignal[],
-  employers: EmployerRow[],
-  limit: number
-): Promise<(ScoredSignal | undefined)[]> {
-  const out: (ScoredSignal | undefined)[] = new Array(sigs.length);
-  let next = 0;
-  async function worker() {
-    while (true) {
-      const i = next++;
-      if (i >= sigs.length) return;
-      try {
-        out[i] = await scoreSignal(sigs[i], employers);
-      } catch {
-        out[i] = undefined; // skip this one; others continue
-      }
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, sigs.length) }, worker));
-  return out;
-}
-
-// Run every feed: fetch all in parallel, score everything with bounded
-// concurrency, then write per feed. One failing feed or one failing score never
-// aborts the rest.
+// Run every feed: fetch all in parallel, score everything with the deterministic
+// rules scorer, then write per feed. One failing feed or one failing score never
+// aborts the rest. No API key is required.
 export async function runAllFeeds(): Promise<FeedResult[]> {
   const employers = await loadEmployers();
 
@@ -86,19 +61,20 @@ export async function runAllFeeds(): Promise<FeedResult[]> {
     })
   );
 
-  // 2. Score everything at once with bounded concurrency.
-  const flat: { source: string; sig: NormalizedSignal }[] = [];
-  for (const f of fetched) for (const r of f.raw) flat.push({ source: f.feed.source, sig: r });
-  const scored = await scoreConcurrently(flat.map((x) => x.sig), employers, SCORING_CONCURRENCY);
-
+  // 2. Score every fetched signal with the rules scorer.
   const scoredBySource = new Map<string, ScoredSignal[]>();
-  flat.forEach((x, i) => {
-    const s = scored[i];
-    if (!s) return;
-    const arr = scoredBySource.get(x.source) ?? [];
-    arr.push(s);
-    scoredBySource.set(x.source, arr);
-  });
+  for (const f of fetched) {
+    for (const sig of f.raw) {
+      try {
+        const s = scoreSignalRules(sig, employers);
+        const arr = scoredBySource.get(f.feed.source) ?? [];
+        arr.push(s);
+        scoredBySource.set(f.feed.source, arr);
+      } catch {
+        // skip a single bad signal; others continue
+      }
+    }
+  }
 
   // 3. Write per feed (replace-unhandled first for snapshot-style feeds).
   const results: FeedResult[] = [];

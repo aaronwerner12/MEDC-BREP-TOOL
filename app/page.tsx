@@ -226,11 +226,7 @@ export default async function Desk() {
 
       {data.state === "ok" && (
         <>
-          <Banner
-            kpis={data.kpis}
-            top={data.signals[0]}
-            scoringEnabled={!!process.env.ANTHROPIC_API_KEY}
-          />
+          <Banner kpis={data.kpis} top={data.signals[0]} />
 
           <section className="kpis">
             <Kpi label="Employers watched" value={data.kpis.employers} icon={<BuildingIcon />} />
@@ -262,15 +258,7 @@ export default async function Desk() {
   );
 }
 
-function Banner({
-  kpis,
-  top,
-  scoringEnabled,
-}: {
-  kpis: Kpis;
-  top: SignalRow | undefined;
-  scoringEnabled: boolean;
-}) {
+function Banner({ kpis, top }: { kpis: Kpis; top: SignalRow | undefined }) {
   const lead =
     kpis.risks > 0 && top
       ? `${top.company} is your top priority right now (${top.category}).`
@@ -288,13 +276,9 @@ function Banner({
         <span className="pill">
           <PulseIcon /> {kpis.outreach} open
         </span>
-        {scoringEnabled ? (
-          <form action={pullFeeds}>
-            <PullButton />
-          </form>
-        ) : (
-          <span className="hint">Set ANTHROPIC_API_KEY to pull feeds</span>
-        )}
+        <form action={pullFeeds}>
+          <PullButton />
+        </form>
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import {
   riskLevelRead,
   FRESHNESS_MONTHS,
 } from "@/lib/risk";
+import { parseProfile } from "@/lib/profile";
 import { BriefButton } from "../../brief-button";
 import { ProfileButton } from "../../profile-button";
 import { NewsButton } from "../../news-button";
@@ -257,14 +258,30 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
         {employer.profile ? (
-          <>
-            <p className="brief-body" style={{ whiteSpace: "pre-line" }}>
-              {employer.profile}
-            </p>
-            <p className="brief-when" style={{ marginTop: 8 }}>
-              From public web sources. Verify before using in any public document.
-            </p>
-          </>
+          (() => {
+            const { fields, text } = parseProfile(employer.profile);
+            return (
+              <>
+                {fields.length > 0 ? (
+                  <dl className="profile-list">
+                    {fields.map((f) => (
+                      <div className="profile-row" key={f.label}>
+                        <dt className="profile-label">{f.label}</dt>
+                        <dd className="profile-value">{f.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="brief-body" style={{ whiteSpace: "pre-line" }}>
+                    {text}
+                  </p>
+                )}
+                <p className="brief-when" style={{ marginTop: 8 }}>
+                  From public web sources. Verify before using in any public document.
+                </p>
+              </>
+            );
+          })()
         ) : (
           <p className="brief-body muted">
             No profile yet. Look up public business info (location, employees, executives,

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { sql } from "@/lib/db";
 import { BREP_CATEGORIES } from "@/lib/brep";
 import { ensureSchema } from "@/lib/setup";
+import { computeRiskIndex, trendArrow, type RiskLevel } from "@/lib/risk";
 import { BriefButton } from "../../brief-button";
 import { ProfileButton } from "../../profile-button";
 
@@ -52,6 +53,21 @@ function fmtDate(iso: string): string {
   return Number.isNaN(d.getTime())
     ? ""
     : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function riskLevelLabel(l: RiskLevel): string {
+  return l === "high"
+    ? "High"
+    : l === "elevated"
+    ? "Elevated"
+    : l === "low"
+    ? "Low"
+    : l === "growth"
+    ? "Growing"
+    : "Quiet";
+}
+function trendLabel(t: "up" | "down" | "flat" | "new"): string {
+  return t === "up" ? "↑ rising" : t === "down" ? "↓ improving" : t === "flat" ? "steady" : "new";
 }
 
 async function readEmployer(
@@ -124,6 +140,24 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
   // watching" section can show the rest as still-open questions.
   const activeCategories = new Set(open.map((s) => s.category));
 
+  // Retention risk index for this employer, plus the trend vs. the last snapshot.
+  const riskResult = computeRiskIndex(
+    open.map((s) => ({ signal_type: s.signal_type, tier: s.tier, priority: s.priority, scored_at: s.scored_at })),
+    employer.band
+  );
+  let prevScore: number | null = null;
+  try {
+    const pr = (await sql`
+      select score from risk_snapshots
+      where employer_id = ${employer.id} and taken_at < now() - interval '12 hours'
+      order by taken_at desc limit 1
+    `) as { score: number }[];
+    prevScore = pr[0]?.score ?? null;
+  } catch {
+    prevScore = null;
+  }
+  const trend = trendArrow(riskResult.score, prevScore);
+
   return (
     <div className="wrap">
       <header className="head">
@@ -164,6 +198,14 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
             : "No active signals. Quiet is good — monitoring the BREP indicators below.";
         return (
           <div className="health card">
+            <div className={`risk-index ${riskResult.level}`}>
+              <div className="ri-num">{riskResult.score}</div>
+              <div className="ri-meta">
+                <span className="ri-label">Risk index</span>
+                <span className="ri-level">{riskLevelLabel(riskResult.level)}</span>
+                <span className="ri-trend">{trendLabel(trend)}</span>
+              </div>
+            </div>
             <div className="health-main">
               <span className={`health-status ${statusClass}`}>{statusText}</span>
               <p className="health-read">{read}</p>

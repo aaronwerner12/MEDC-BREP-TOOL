@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { sql } from "@/lib/db";
 import { ensureSchema } from "@/lib/setup";
+import { computeRiskIndex, trendArrow, type RiskInput, type RiskResult } from "@/lib/risk";
 import { handleEmployer, pullFeeds } from "./actions";
 import { PullButton } from "./pull-button";
+import { RiskBadge } from "./risk-badge";
 
 // Reads live Neon data, so never prerender at build time.
 export const dynamic = "force-dynamic";
@@ -50,6 +52,8 @@ type DeskData =
       signals: SignalRow[];
       employers: EmployerRow[];
       statusByEmployer: Map<number, Status>;
+      scoreByEmployer: Map<number, RiskResult>;
+      prevScoreByEmployer: Map<number, number>;
       kpis: Kpis;
     }
   | { state: "unconfigured" }
@@ -126,6 +130,29 @@ async function readDesk(): Promise<DeskData> {
       statusByEmployer.set(s.employer_id, next);
     }
 
+    // Risk index per employer (from open signals + size band).
+    const bandById = new Map<number, string | null>(employers.map((e) => [e.id, e.band]));
+    const sigsByEmp = new Map<number, RiskInput[]>();
+    for (const s of signals) {
+      if (s.employer_id == null) continue;
+      const arr = sigsByEmp.get(s.employer_id) ?? [];
+      arr.push({ signal_type: s.signal_type, tier: s.tier, priority: s.priority, scored_at: s.scored_at });
+      sigsByEmp.set(s.employer_id, arr);
+    }
+    const scoreByEmployer = new Map<number, RiskResult>();
+    for (const [id, sigs] of sigsByEmp) {
+      scoreByEmployer.set(id, computeRiskIndex(sigs, bandById.get(id) ?? null));
+    }
+
+    // Previous snapshot per employer (older than 12h) for the trend arrow.
+    const prevRows = (await sql`
+      select distinct on (employer_id) employer_id, score
+      from risk_snapshots
+      where taken_at < now() - interval '12 hours'
+      order by employer_id, taken_at desc
+    `) as { employer_id: number; score: number }[];
+    const prevScoreByEmployer = new Map<number, number>(prevRows.map((r) => [r.employer_id, r.score]));
+
     const kpis: Kpis = {
       employers: employers.length,
       risks: signals.filter((s) => s.signal_type === "risk").length,
@@ -133,7 +160,15 @@ async function readDesk(): Promise<DeskData> {
       outreach: signals.length,
     };
 
-    return { state: "ok", signals, employers, statusByEmployer, kpis };
+    return {
+      state: "ok",
+      signals,
+      employers,
+      statusByEmployer,
+      scoreByEmployer,
+      prevScoreByEmployer,
+      kpis,
+    };
   }
 }
 
@@ -197,8 +232,13 @@ export default async function Desk() {
             </main>
 
             <aside>
-              <div className="col-head">Watchlist · by employment size</div>
-              <Watchlist employers={data.employers} statusByEmployer={data.statusByEmployer} />
+              <div className="col-head">Watchlist · by risk index</div>
+              <Watchlist
+                employers={data.employers}
+                statusByEmployer={data.statusByEmployer}
+                scoreByEmployer={data.scoreByEmployer}
+                prevScoreByEmployer={data.prevScoreByEmployer}
+              />
             </aside>
           </div>
         </>
@@ -389,9 +429,13 @@ function Legend() {
 function Watchlist({
   employers,
   statusByEmployer,
+  scoreByEmployer,
+  prevScoreByEmployer,
 }: {
   employers: EmployerRow[];
   statusByEmployer: Map<number, Status>;
+  scoreByEmployer: Map<number, RiskResult>;
+  prevScoreByEmployer: Map<number, number>;
 }) {
   if (employers.length === 0) {
     return <div className="empty">Watchlist is empty. Run the seed migrations.</div>;
@@ -404,7 +448,9 @@ function Watchlist({
   return (
     <>
       {bands.map((band) => {
-        const firms = employers.filter((e) => (e.band ?? "Other") === band);
+        const firms = employers
+          .filter((e) => (e.band ?? "Other") === band)
+          .sort((a, b) => (scoreByEmployer.get(b.id)?.score ?? 0) - (scoreByEmployer.get(a.id)?.score ?? 0));
         return (
           <div className="band" key={band}>
             <div className="band-head">
@@ -415,6 +461,8 @@ function Watchlist({
             </div>
             {firms.map((e) => {
               const st = statusByEmployer.get(e.id) ?? "none";
+              const risk = scoreByEmployer.get(e.id);
+              const trend = risk ? trendArrow(risk.score, prevScoreByEmployer.get(e.id) ?? null) : undefined;
               return (
                 <Link className="emp emp-link" key={e.id} href={`/employer/${e.id}`}>
                   <span className={`dot ${st}`} />
@@ -422,7 +470,11 @@ function Watchlist({
                     <div className="name">{e.name}</div>
                     {e.sector && <div className="sector">{e.sector}</div>}
                   </div>
-                  <span className={`status ${st}`}>{statusLabel(st)}</span>
+                  {risk && risk.level !== "none" ? (
+                    <RiskBadge score={risk.score} level={risk.level} trend={trend} />
+                  ) : (
+                    <span className={`status ${st}`}>{statusLabel(st)}</span>
+                  )}
                 </Link>
               );
             })}

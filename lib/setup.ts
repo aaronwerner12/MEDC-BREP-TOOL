@@ -82,6 +82,18 @@ export async function ensureSchema(): Promise<SetupStep[]> {
       add column if not exists profile    text,
       add column if not exists profile_at timestamptz`);
 
+  await run("create table risk_snapshots", () => sql`
+    create table if not exists risk_snapshots (
+      id          bigserial primary key,
+      employer_id integer references employers(id),
+      score       integer not null,
+      level       text,
+      taken_at    timestamptz default now()
+    )`);
+
+  await run("create index risk_snapshots_emp_idx", () => sql`
+    create index if not exists risk_snapshots_emp_idx on risk_snapshots (employer_id, taken_at desc)`);
+
   await run("seed broader McKinney directory", () => sql`
     insert into employers (name, aliases, sector, segment) values
       ('McKinney ISD', array['McKinney Independent School District','MISD'], 'Public education', 'mckinney'),

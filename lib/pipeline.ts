@@ -3,6 +3,7 @@ import { scoreSignal } from "./score";
 import { ingestSignal } from "./ingest";
 import { loadEmployers, type EmployerRow } from "./employers";
 import type { NormalizedSignal, ScoredSignal } from "./types";
+import { computeRiskIndex, type RiskInput } from "./risk";
 import { usaspendingSignals } from "../adapters/usaspending";
 import { twcWarnSignals } from "../adapters/twcWarn";
 import { secEdgarSignals } from "../adapters/secEdgar";
@@ -124,5 +125,42 @@ export async function runAllFeeds(): Promise<FeedResult[]> {
     }
   }
 
+  // Record a risk-index snapshot per employer with open signals, for trends.
+  try {
+    await snapshotRiskScores();
+  } catch {
+    // Never let snapshotting break a pull.
+  }
+
   return results;
+}
+
+// Compute each employer's current risk index from their open signals and record
+// one snapshot row per employer, so trends can be derived over time.
+async function snapshotRiskScores(): Promise<void> {
+  const rows = (await sql`
+    select s.employer_id, s.signal_type, s.tier, s.priority, s.scored_at, e.band
+    from signals s
+    join employers e on e.id = s.employer_id
+    where s.handled = false and s.employer_id is not null
+  `) as {
+    employer_id: number;
+    signal_type: RiskInput["signal_type"];
+    tier: string;
+    priority: number;
+    scored_at: string;
+    band: string | null;
+  }[];
+
+  const byEmployer = new Map<number, { band: string | null; sigs: RiskInput[] }>();
+  for (const r of rows) {
+    const e = byEmployer.get(r.employer_id) ?? { band: r.band, sigs: [] };
+    e.sigs.push({ signal_type: r.signal_type, tier: r.tier, priority: r.priority, scored_at: r.scored_at });
+    byEmployer.set(r.employer_id, e);
+  }
+
+  for (const [employerId, { band, sigs }] of byEmployer) {
+    const { score, level } = computeRiskIndex(sigs, band);
+    await sql`insert into risk_snapshots (employer_id, score, level) values (${employerId}, ${score}, ${level})`;
+  }
 }

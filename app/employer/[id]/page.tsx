@@ -2,7 +2,7 @@ import Link from "next/link";
 import { sql } from "@/lib/db";
 import { BREP_CATEGORIES } from "@/lib/brep";
 import { ensureSchema } from "@/lib/setup";
-import { computeRiskIndex, trendArrow, type RiskLevel } from "@/lib/risk";
+import { computeRiskIndex, trendArrow, riskLevelLabel, riskLevelRead } from "@/lib/risk";
 import { BriefButton } from "../../brief-button";
 import { ProfileButton } from "../../profile-button";
 import { NewsButton } from "../../news-button";
@@ -57,17 +57,6 @@ function fmtDate(iso: string): string {
     : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-function riskLevelLabel(l: RiskLevel): string {
-  return l === "high"
-    ? "High"
-    : l === "elevated"
-    ? "Elevated"
-    : l === "low"
-    ? "Low"
-    : l === "growth"
-    ? "Growing"
-    : "Quiet";
-}
 function trendLabel(t: "up" | "down" | "flat" | "new"): string {
   return t === "up" ? "↑ rising" : t === "down" ? "↓ improving" : t === "flat" ? "steady" : "new";
 }
@@ -144,7 +133,13 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
 
   // Retention risk index for this employer, plus the trend vs. the last snapshot.
   const riskResult = computeRiskIndex(
-    open.map((s) => ({ signal_type: s.signal_type, tier: s.tier, priority: s.priority, scored_at: s.scored_at })),
+    open.map((s) => ({
+      signal_type: s.signal_type,
+      tier: s.tier,
+      priority: s.priority,
+      category: s.category,
+      scored_at: s.scored_at,
+    })),
     employer.band
   );
   let prevScore: number | null = null;
@@ -180,24 +175,11 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
       </header>
 
       {(() => {
-        const statusClass =
-          status === "risk" ? "risk" : status === "growth" ? "growth" : status === "neutral" ? "watch" : "none";
-        const statusText =
-          status === "risk"
-            ? "At risk"
-            : status === "growth"
-            ? "Growing"
-            : status === "neutral"
-            ? "Watch"
-            : "Healthy / quiet";
-        const read =
-          status === "risk"
-            ? `${risks.length} active risk signal${risks.length === 1 ? "" : "s"} — worth a proactive retention touch.`
-            : status === "growth"
-            ? `${positives.length} growth signal${positives.length === 1 ? "" : "s"} — an expansion opportunity to support.`
-            : status === "neutral"
-            ? `${watches.length} item${watches.length === 1 ? "" : "s"} to review before acting.`
-            : "No active signals. Quiet is good — monitoring the BREP indicators below.";
+        // Wording is driven by the calibrated retention-risk level, not by a raw
+        // count of risk signals, so "At risk" is reserved for real threats.
+        const statusClass = riskResult.level;
+        const statusText = riskLevelLabel(riskResult.level);
+        const read = riskLevelRead(riskResult.level);
         return (
           <div className="health card">
             <div className={`risk-index ${riskResult.level}`}>

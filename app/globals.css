@@ -395,16 +395,22 @@ a {
   font-weight: 700;
   font-size: 22px;
 }
-.health-status.risk {
+.health-status.atrisk {
   color: var(--brick);
+}
+.health-status.elevated {
+  color: var(--sun-ink);
+}
+.health-status.watch {
+  color: var(--denim);
+}
+.health-status.monitor {
+  color: var(--muted);
 }
 .health-status.growth {
   color: var(--mint-ink);
 }
-.health-status.watch {
-  color: var(--sun-ink);
-}
-.health-status.none {
+.health-status.stable {
   color: var(--denim);
 }
 .health-read {
@@ -717,7 +723,7 @@ a {
   border-radius: 999px;
   flex: none;
 }
-.risk-badge.high {
+.risk-badge.atrisk {
   color: var(--brick-ink);
   background: var(--brick-bg);
 }
@@ -725,15 +731,19 @@ a {
   color: var(--sun-ink);
   background: var(--sun-bg);
 }
-.risk-badge.low {
+.risk-badge.watch {
   color: var(--denim);
   background: #eef3f7;
+}
+.risk-badge.monitor {
+  color: var(--muted);
+  background: #f0ede5;
 }
 .risk-badge.growth {
   color: var(--mint-ink);
   background: var(--mint-bg);
 }
-.risk-badge.none {
+.risk-badge.stable {
   color: var(--muted);
   background: #f0ede5;
 }
@@ -767,19 +777,22 @@ a {
   font-size: 40px;
   line-height: 1;
 }
-.risk-index.high .ri-num {
+.risk-index.atrisk .ri-num {
   color: var(--brick);
 }
 .risk-index.elevated .ri-num {
   color: var(--sun-ink);
 }
-.risk-index.low .ri-num {
+.risk-index.watch .ri-num {
   color: var(--denim);
+}
+.risk-index.monitor .ri-num {
+  color: var(--muted);
 }
 .risk-index.growth .ri-num {
   color: var(--mint-ink);
 }
-.risk-index.none .ri-num {
+.risk-index.stable .ri-num {
   color: var(--muted);
 }
 .ri-meta {

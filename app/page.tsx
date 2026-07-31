@@ -138,7 +138,13 @@ async function readDesk(): Promise<DeskData> {
     for (const s of signals) {
       if (s.employer_id == null) continue;
       const arr = sigsByEmp.get(s.employer_id) ?? [];
-      arr.push({ signal_type: s.signal_type, tier: s.tier, priority: s.priority, scored_at: s.scored_at });
+      arr.push({
+        signal_type: s.signal_type,
+        tier: s.tier,
+        priority: s.priority,
+        category: s.category,
+        scored_at: s.scored_at,
+      });
       sigsByEmp.set(s.employer_id, arr);
     }
     const scoreByEmployer = new Map<number, RiskResult>();
@@ -489,7 +495,9 @@ function Watchlist({
                     <div className="name">{e.name}</div>
                     {e.sector && <div className="sector">{e.sector}</div>}
                   </div>
-                  {risk && risk.level !== "none" ? (
+                  {risk && (risk.level === "growth" || risk.level === "stable") ? (
+                    <span className={`status ${st}`}>{statusLabel(st)}</span>
+                  ) : risk ? (
                     <RiskBadge score={risk.score} level={risk.level} trend={trend} />
                   ) : (
                     <span className={`status ${st}`}>{statusLabel(st)}</span>

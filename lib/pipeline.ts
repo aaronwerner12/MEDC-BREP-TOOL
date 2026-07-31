@@ -139,7 +139,7 @@ export async function runAllFeeds(): Promise<FeedResult[]> {
 // one snapshot row per employer, so trends can be derived over time.
 async function snapshotRiskScores(): Promise<void> {
   const rows = (await sql`
-    select s.employer_id, s.signal_type, s.tier, s.priority, s.scored_at, e.band
+    select s.employer_id, s.signal_type, s.tier, s.priority, s.category, s.scored_at, e.band
     from signals s
     join employers e on e.id = s.employer_id
     where s.handled = false and s.employer_id is not null
@@ -148,6 +148,7 @@ async function snapshotRiskScores(): Promise<void> {
     signal_type: RiskInput["signal_type"];
     tier: string;
     priority: number;
+    category: string | null;
     scored_at: string;
     band: string | null;
   }[];
@@ -155,7 +156,13 @@ async function snapshotRiskScores(): Promise<void> {
   const byEmployer = new Map<number, { band: string | null; sigs: RiskInput[] }>();
   for (const r of rows) {
     const e = byEmployer.get(r.employer_id) ?? { band: r.band, sigs: [] };
-    e.sigs.push({ signal_type: r.signal_type, tier: r.tier, priority: r.priority, scored_at: r.scored_at });
+    e.sigs.push({
+      signal_type: r.signal_type,
+      tier: r.tier,
+      priority: r.priority,
+      category: r.category,
+      scored_at: r.scored_at,
+    });
     byEmployer.set(r.employer_id, e);
   }
 

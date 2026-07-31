@@ -44,6 +44,16 @@ healthy vs risk indicators to set signalType (a healthy sign -> "growth", a risk
 indicator -> "risk", neither/unclear -> "neutral"):
 ${brepGuidance()}
 
+Be conservative with "risk": reserve it for signals that plausibly threaten the
+company's local jobs, investment, or continued McKinney presence (layoffs,
+closures, an out-of-area acquisition, sustained financial decline, its facility
+going up for lease/sale, a canceled expansion). Treat isolated, routine
+negatives that rarely drive a company to shrink or leave (a single lawsuit, a
+minor OSHA/EPA citation, ordinary regulatory friction, one bad review) as
+"neutral" unless they clearly threaten operations. Set "priority" to reflect how
+strongly the signal predicts an actual retention event, not just how negative it
+sounds.
+
 Return ONLY this JSON:
 {"signalType":"risk"|"growth"|"neutral","category":"<exactly one category name from the list above>","priority":0-100,"summary":"one factual sentence","recommendedAction":"one specific BRE next step","talkingPoint":"outreach opener or empty string"}`;
 

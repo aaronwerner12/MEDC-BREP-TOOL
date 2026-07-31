@@ -2,7 +2,13 @@ import Link from "next/link";
 import { sql } from "@/lib/db";
 import { BREP_CATEGORIES } from "@/lib/brep";
 import { ensureSchema } from "@/lib/setup";
-import { computeRiskIndex, trendArrow, riskLevelLabel, riskLevelRead } from "@/lib/risk";
+import {
+  computeRiskIndex,
+  trendArrow,
+  riskLevelLabel,
+  riskLevelRead,
+  FRESHNESS_MONTHS,
+} from "@/lib/risk";
 import { BriefButton } from "../../brief-button";
 import { ProfileButton } from "../../profile-button";
 import { NewsButton } from "../../news-button";
@@ -35,6 +41,7 @@ interface Signal {
   source: string;
   source_url: string | null;
   scored_at: string;
+  event_date: string;
   handled: boolean;
 }
 
@@ -74,7 +81,8 @@ async function readEmployer(
 
   const signals = (await sql`
     select id, signal_type, priority, category, summary, recommended_action,
-           talking_point, tier, source, source_url, scored_at, handled
+           talking_point, tier, source, source_url, scored_at,
+           coalesce(event_date, scored_at) as event_date, handled
     from signals
     where employer_id = ${employerId}
     order by handled asc, priority desc, scored_at desc
@@ -113,8 +121,18 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
   const { employer, signals } = result;
   if (!employer) return <NotFound />;
 
-  const open = signals.filter((s) => !s.handled);
   const handled = signals.filter((s) => s.handled);
+  const openAll = signals.filter((s) => !s.handled);
+
+  // Only recent events count toward the checkup; older ones are shown separately.
+  const freshMs = FRESHNESS_MONTHS * 30.44 * 86_400_000;
+  const isFresh = (s: Signal) => {
+    const t = new Date(s.event_date).getTime();
+    return Number.isNaN(t) ? true : Date.now() - t <= freshMs;
+  };
+  const open = openAll.filter(isFresh);
+  const openStale = openAll.filter((s) => !isFresh(s));
+
   const risks = open.filter((s) => s.signal_type === "risk");
   const positives = open.filter((s) => s.signal_type === "growth");
   const watches = open.filter((s) => s.signal_type === "neutral");
@@ -138,7 +156,7 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
       tier: s.tier,
       priority: s.priority,
       category: s.category,
-      scored_at: s.scored_at,
+      date: s.event_date,
     })),
     employer.band
   );
@@ -347,6 +365,22 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
           </tbody>
         </table>
       </div>
+
+      {openStale.length > 0 && (
+        <>
+          <div className="col-head" style={{ marginTop: 24 }}>
+            Older signals · not counted (over {FRESHNESS_MONTHS} months)
+          </div>
+          {openStale.map((s) => (
+            <div className="handled-row" key={s.id}>
+              <span className={`dot ${s.signal_type === "risk" ? "risk" : s.signal_type === "growth" ? "growth" : "watch"}`} />
+              <span className="hr-cat">{s.category}</span>
+              <span className="hr-sum">{s.summary}</span>
+              <span className="hr-date">{fmtDate(s.event_date)}</span>
+            </div>
+          ))}
+        </>
+      )}
 
       {handled.length > 0 && (
         <>

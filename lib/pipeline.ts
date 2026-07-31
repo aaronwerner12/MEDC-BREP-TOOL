@@ -3,7 +3,7 @@ import { scoreSignal } from "./score";
 import { ingestSignal } from "./ingest";
 import { loadEmployers, type EmployerRow } from "./employers";
 import type { NormalizedSignal, ScoredSignal } from "./types";
-import { computeRiskIndex, type RiskInput } from "./risk";
+import { computeRiskIndex, FRESHNESS_MONTHS, type RiskInput } from "./risk";
 import { usaspendingSignals } from "../adapters/usaspending";
 import { twcWarnSignals } from "../adapters/twcWarn";
 import { secEdgarSignals } from "../adapters/secEdgar";
@@ -139,17 +139,19 @@ export async function runAllFeeds(): Promise<FeedResult[]> {
 // one snapshot row per employer, so trends can be derived over time.
 async function snapshotRiskScores(): Promise<void> {
   const rows = (await sql`
-    select s.employer_id, s.signal_type, s.tier, s.priority, s.category, s.scored_at, e.band
+    select s.employer_id, s.signal_type, s.tier, s.priority, s.category,
+           coalesce(s.event_date, s.scored_at) as event_date, e.band
     from signals s
     join employers e on e.id = s.employer_id
     where s.handled = false and s.employer_id is not null
+      and coalesce(s.event_date, s.scored_at) >= now() - (${`${FRESHNESS_MONTHS} months`})::interval
   `) as {
     employer_id: number;
     signal_type: RiskInput["signal_type"];
     tier: string;
     priority: number;
     category: string | null;
-    scored_at: string;
+    event_date: string;
     band: string | null;
   }[];
 
@@ -161,7 +163,7 @@ async function snapshotRiskScores(): Promise<void> {
       tier: r.tier,
       priority: r.priority,
       category: r.category,
-      scored_at: r.scored_at,
+      date: r.event_date,
     });
     byEmployer.set(r.employer_id, e);
   }

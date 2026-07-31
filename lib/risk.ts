@@ -19,8 +19,13 @@ export interface RiskInput {
   tier: string;
   priority: number;
   category?: string | null;
-  scored_at?: string | null;
+  date?: string | null; // when the underlying event happened (not when ingested)
 }
+
+// Only recent events count. Anything older than this horizon is treated as stale
+// news and excluded from the index and the active queue.
+export const FRESHNESS_MONTHS = 24;
+const FRESHNESS_DAYS = FRESHNESS_MONTHS * 30.44;
 
 export type RiskLevel = "atrisk" | "elevated" | "watch" | "monitor" | "growth" | "stable";
 
@@ -88,10 +93,15 @@ export function computeRiskIndex(signals: RiskInput[], band?: string | null): Ri
   let risk = 0;
   let growth = 0;
   for (const s of signals) {
+    // Exclude stale events entirely (a layoff from 2+ years ago is old news).
+    if (s.date) {
+      const ageDays = (Date.now() - new Date(s.date).getTime()) / 86_400_000;
+      if (!Number.isNaN(ageDays) && ageDays > FRESHNESS_DAYS) continue;
+    }
     const p = Math.max(0, Math.min(100, s.priority || 0)) / 100;
     const tier = s.tier === "authoritative" ? 1 : 0.6;
     const cw = categoryWeight(s.category);
-    const base = p * cw * tier * recencyWeight(s.scored_at);
+    const base = p * cw * tier * recencyWeight(s.date);
     if (s.signal_type === "risk") risk += base;
     else if (s.signal_type === "neutral") risk += base * 0.4;
     else if (s.signal_type === "growth") growth += base;

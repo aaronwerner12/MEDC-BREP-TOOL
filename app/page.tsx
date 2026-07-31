@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { sql } from "@/lib/db";
 import { ensureSchema } from "@/lib/setup";
-import { computeRiskIndex, trendArrow, type RiskInput, type RiskResult } from "@/lib/risk";
+import {
+  computeRiskIndex,
+  trendArrow,
+  FRESHNESS_MONTHS,
+  type RiskInput,
+  type RiskResult,
+} from "@/lib/risk";
 import { handleEmployer, pullFeeds } from "./actions";
 import { PullButton } from "./pull-button";
 import { RiskBadge } from "./risk-badge";
@@ -111,6 +117,7 @@ async function readDesk(): Promise<DeskData> {
       from signals s
       left join employers e on e.id = s.employer_id
       where s.handled = false
+        and coalesce(s.event_date, s.scored_at) >= now() - (${`${FRESHNESS_MONTHS} months`})::interval
       order by (s.tier = 'authoritative') desc, s.priority desc, s.scored_at desc
     `) as SignalRow[];
 
@@ -143,7 +150,7 @@ async function readDesk(): Promise<DeskData> {
         tier: s.tier,
         priority: s.priority,
         category: s.category,
-        scored_at: s.scored_at,
+        date: s.event_date,
       });
       sigsByEmp.set(s.employer_id, arr);
     }

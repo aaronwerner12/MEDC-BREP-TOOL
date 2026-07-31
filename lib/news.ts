@@ -38,7 +38,7 @@ export async function fetchCompanyNews(input: {
   name: string;
   sector: string | null;
 }): Promise<NewsItem[]> {
-  const prompt = `Find up to 5 significant, recent business news items from roughly the past 2 years about "${input.name}"${
+  const prompt = `Find up to 5 significant, recent business news items from roughly the past 18 months (favor the most recent) about "${input.name}"${
     input.sector ? ` (${input.sector})` : ""
   }, relevant to its business health or its McKinney / Collin County, Texas operations. Focus on layoffs, expansions, new facilities, acquisitions or mergers, leadership changes, financial results, and legal or regulatory matters. Use web search.
 

@@ -116,6 +116,7 @@ export function mapWarnNotices(rows: Row[], employers: EmployerRow[]): Normalize
       externalId: `${slug(company)}:${noticeDate || effectiveDate || "nodate"}:${slug(city)}`,
       companyName: company,
       sourceUrl: DATASET_URL,
+      eventDate: noticeDate || effectiveDate || undefined,
       observedText:
         `Texas WARN layoff notice: ${company} in ${location}, ${affected}, ${effective}.` +
         `${noticed} Source: Texas Workforce Commission WARN listing.`,

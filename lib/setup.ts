@@ -58,6 +58,12 @@ export async function ensureSchema(): Promise<SetupStep[]> {
     create index if not exists signals_open_idx
       on signals (handled, signal_type, priority desc)`);
 
+  await run("add signals.event_date", () => sql`
+    alter table signals add column if not exists event_date timestamptz`);
+
+  await run("backfill signals.event_date", () => sql`
+    update signals set event_date = scored_at where event_date is null`);
+
   await run("create table runs", () => sql`
     create table if not exists runs (
       id          bigserial primary key,

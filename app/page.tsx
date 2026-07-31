@@ -28,6 +28,7 @@ interface SignalRow {
   source: string;
   source_url: string | null;
   scored_at: string;
+  event_date: string;
 }
 
 interface EmployerRow {
@@ -105,7 +106,7 @@ async function readDesk(): Promise<DeskData> {
              ) as company,
              e.band, s.signal_type, s.priority, s.category, s.summary,
              s.recommended_action, s.talking_point, s.tier, s.source,
-             s.source_url, s.scored_at
+             s.source_url, s.scored_at, coalesce(s.event_date, s.scored_at) as event_date
       from signals s
       left join employers e on e.id = s.employer_id
       where s.handled = false
@@ -315,13 +316,17 @@ interface QueueGroup {
   topPriority: number;
   categories: string[];
   topSummary: string;
+  topDateMs: number; // freshest event date in the group
+  topDateIso: string;
 }
 
 const SEV: Record<SigType, number> = { risk: 3, growth: 2, neutral: 1 };
 
 // One row per company: collapse a company's many signals into a single entry
-// carrying its most-severe status, reason count, and top priority.
+// carrying its most-severe status, reason count, top priority, and the date of
+// its freshest signal.
 function groupSignals(signals: SignalRow[]): QueueGroup[] {
+  const now = Date.now();
   const buckets = new Map<string, SignalRow[]>();
   for (const s of signals) {
     const key = s.employer_id != null ? `e${s.employer_id}` : `n:${s.company.toLowerCase()}`;
@@ -337,6 +342,8 @@ function groupSignals(signals: SignalRow[]): QueueGroup[] {
       (acc, s) => (SEV[s.signal_type] > SEV[acc] ? s.signal_type : acc),
       "neutral"
     );
+    const times = arr.map((s) => new Date(s.event_date).getTime()).filter((t) => !Number.isNaN(t));
+    const topDateMs = times.length ? Math.max(...times) : 0;
     groups.push({
       key,
       employerId: top.employer_id,
@@ -346,10 +353,20 @@ function groupSignals(signals: SignalRow[]): QueueGroup[] {
       topPriority: Math.max(...arr.map((s) => s.priority)),
       categories: [...new Set(arr.map((s) => s.category).filter(Boolean))],
       topSummary: top.summary,
+      topDateMs,
+      topDateIso: topDateMs ? new Date(topDateMs).toISOString() : "",
     });
   }
 
-  groups.sort((a, b) => SEV[b.status] - SEV[a.status] || b.topPriority - a.topPriority);
+  // Rank blends priority, severity, and recency, so older news sinks to the
+  // bottom even when its priority is high. Each month of age costs ~6 points.
+  const rank = (g: QueueGroup) => {
+    const sevBonus = g.status === "risk" ? 25 : g.status === "growth" ? 12 : 0;
+    const ageDays = g.topDateMs ? (now - g.topDateMs) / 86_400_000 : 0;
+    const agePenalty = Math.max(0, (ageDays / 30) * 6);
+    return g.topPriority + sevBonus - agePenalty;
+  };
+  groups.sort((a, b) => rank(b) - rank(a));
   return groups;
 }
 
@@ -396,6 +413,7 @@ function QueueGroupRow({ g }: { g: QueueGroup }) {
       <div className="sig-body clamp">{g.topSummary}</div>
 
       <div className="sig-meta">
+        {g.topDateIso && <span className="sig-date">{fmtDate(g.topDateIso)}</span>}
         {g.categories.length > 0 && (
           <span className="sig-src">{g.categories.slice(0, 3).join(" · ")}</span>
         )}

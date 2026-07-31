@@ -16,6 +16,7 @@ export interface NormalizedSignal {
   companyName: string; // name as the feed reports it (matched to an employer later)
   observedText: string; // the factual text the scorer classifies
   sourceUrl?: string;
+  eventDate?: string; // when the underlying event happened (ISO date); defaults to now
   raw?: unknown; // original feed payload, stored as jsonb
 }
 

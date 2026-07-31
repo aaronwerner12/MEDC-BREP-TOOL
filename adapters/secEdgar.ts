@@ -110,6 +110,7 @@ export function mapFilings(sub: Submissions, windowDays = WINDOW_DAYS): Normaliz
       externalId: accession, // unique per filing
       companyName: name,
       sourceUrl,
+      eventDate: filingDate || undefined,
       observedText:
         `${name} filed SEC Form ${form} on ${filingDate}.` +
         itemText +

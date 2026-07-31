@@ -52,12 +52,27 @@ export async function addBusiness(input: {
   if (!name) return { ok: false, error: "Name is required." };
   const sector = (input.sector ?? "").trim() || null;
   try {
+    // Upsert: re-adding a previously removed company reactivates it.
     await sql`
       insert into employers (name, sector, segment, active)
       values (${name}, ${sector}, 'mckinney', true)
-      on conflict (name) do nothing`;
+      on conflict (name) do update set active = true`;
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not add business." };
+  }
+  revalidatePath("/businesses");
+  revalidatePath("/");
+  return { ok: true };
+}
+
+// Server action: remove a business from the tracked lists. Soft delete (marks
+// inactive) so signal history is preserved and re-adding restores it.
+export async function removeBusiness(id: number): Promise<{ ok: boolean; error?: string }> {
+  if (!Number.isFinite(id)) return { ok: false, error: "Bad id." };
+  try {
+    await sql`update employers set active = false where id = ${id}`;
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not remove." };
   }
   revalidatePath("/businesses");
   revalidatePath("/");

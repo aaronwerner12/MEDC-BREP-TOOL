@@ -871,6 +871,38 @@ a {
 .biz-list .emp .status {
   margin-left: 12px;
 }
+.dir-row {
+  gap: 8px;
+}
+.dir-main {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+.dir-main:hover .name {
+  color: var(--denim);
+}
+.dir-remove {
+  flex: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  padding: 5px 9px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.dir-remove:hover {
+  color: var(--brick);
+  border-color: var(--brick);
+  background: var(--brick-bg);
+}
 .signal.risk {
   border-left-color: var(--brick);
 }

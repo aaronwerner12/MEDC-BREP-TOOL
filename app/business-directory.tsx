@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { addBusiness, discoverEmployers } from "./actions";
+import { addBusiness, discoverEmployers, removeBusiness } from "./actions";
 
 export type DirStatus = "risk" | "growth" | "watch" | "none";
 
@@ -141,19 +141,43 @@ function DirGroup({ title, subtitle, rows }: { title: string; subtitle: string; 
       ) : (
         <div className="card biz-list">
           {rows.map((e) => (
-            <Link className="emp emp-link" key={e.id} href={`/employer/${e.id}`}>
-              <span className={`dot ${e.status}`} />
-              <div className="info">
-                <div className="name">{e.name}</div>
-                {e.sector && <div className="sector">{e.sector}</div>}
-              </div>
-              {e.band && <span className="chip band">{e.band}</span>}
-              <span className={`status ${e.status}`}>{statusLabel(e.status)}</span>
-            </Link>
+            <div className="emp dir-row" key={e.id}>
+              <Link className="dir-main" href={`/employer/${e.id}`}>
+                <span className={`dot ${e.status}`} />
+                <div className="info">
+                  <div className="name">{e.name}</div>
+                  {e.sector && <div className="sector">{e.sector}</div>}
+                </div>
+                {e.band && <span className="chip band">{e.band}</span>}
+                <span className={`status ${e.status}`}>{statusLabel(e.status)}</span>
+              </Link>
+              <RemoveBtn id={e.id} name={e.name} />
+            </div>
           ))}
         </div>
       )}
     </>
+  );
+}
+
+function RemoveBtn({ id, name }: { id: number; name: string }) {
+  const [pending, start] = useTransition();
+  return (
+    <button
+      className="dir-remove"
+      type="button"
+      title={`Remove ${name}`}
+      disabled={pending}
+      onClick={() => {
+        if (confirm(`Remove ${name} from the tracked list? It will stop being tracked.`)) {
+          start(async () => {
+            await removeBusiness(id);
+          });
+        }
+      }}
+    >
+      {pending ? "…" : "✕"}
+    </button>
   );
 }
 

@@ -49,7 +49,7 @@ export default async function HandledPage() {
   try {
     rows = (await sql`
       select s.id, s.employer_id,
-             coalesce(e.name, s.raw->>'Recipient Name', s.raw->>'job_site_name', s.raw->>'company_name', 'Unmatched signal') as company,
+             coalesce(e.official_name, e.name, s.raw->>'Recipient Name', s.raw->>'job_site_name', s.raw->>'company_name', 'Unmatched signal') as company,
              s.signal_type, s.category, s.summary, s.source, s.scored_at
       from signals s
       left join employers e on e.id = s.employer_id

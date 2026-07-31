@@ -87,7 +87,8 @@ export async function ensureSchema(): Promise<SetupStep[]> {
       add column if not exists segment         text default 'medc',
       add column if not exists profile         text,
       add column if not exists profile_at      timestamptz,
-      add column if not exists news_scanned_at timestamptz`);
+      add column if not exists news_scanned_at timestamptz,
+      add column if not exists official_name   text`);
 
   await run("create table risk_snapshots", () => sql`
     create table if not exists risk_snapshots (

@@ -14,7 +14,7 @@ interface Row {
 
 async function readDirectory(): Promise<{ employers: DirEmployer[] } | null> {
   const rows = (await sql`
-    select id, name, sector, band, coalesce(segment, 'medc') as segment
+    select id, coalesce(official_name, name) as name, sector, band, coalesce(segment, 'medc') as segment
     from employers
     where active = true
     order by name

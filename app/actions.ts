@@ -162,17 +162,42 @@ export async function generateProfile(
   if (!emp) return { ok: false, error: "Employer not found." };
 
   try {
-    const profile = await generateCompanyProfile({
+    await ensureSchema();
+  } catch {
+    // best-effort
+  }
+
+  try {
+    const { profile, officialName } = await generateCompanyProfile({
       name: emp.name,
       sector: emp.sector,
       city: "McKinney, Texas",
     });
     await sql`update employers set profile = ${profile}, profile_at = now() where id = ${employerId}`;
+
+    // If the web found a different official name, use it as the heading and keep
+    // the entered name as an alias so feed matching is unaffected.
+    if (
+      officialName &&
+      officialName.toLowerCase() !== emp.name.toLowerCase() &&
+      officialName.length >= 2
+    ) {
+      try {
+        await sql`
+          update employers
+          set official_name = ${officialName},
+              aliases = case when ${emp.name} = any(aliases) then aliases else aliases || array[${emp.name}] end
+          where id = ${employerId}`;
+      } catch {
+        // best-effort name update
+      }
+    }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Profile lookup failed." };
   }
 
   revalidatePath(`/employer/${employerId}`);
+  revalidatePath("/");
   return { ok: true };
 }
 

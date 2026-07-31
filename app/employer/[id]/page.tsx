@@ -23,6 +23,7 @@ interface Employer {
   band: string | null;
   sector: string | null;
   aliases: string[];
+  official_name: string | null;
   brief: string | null;
   brief_at: string | null;
   profile: string | null;
@@ -73,7 +74,7 @@ async function readEmployer(
 ): Promise<{ employer?: Employer; signals: Signal[] }> {
   const employer = (
     (await sql`
-      select id, name, band, sector, aliases, brief, brief_at, profile, profile_at
+      select id, name, band, sector, aliases, official_name, brief, brief_at, profile, profile_at
       from employers where id = ${employerId}
     `) as Employer[]
   )[0];
@@ -180,10 +181,13 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
           <ScanIcon />
         </div>
         <div>
-          <h1>{employer.name}</h1>
+          <h1>{employer.official_name || employer.name}</h1>
           <div className="tag">
             {employer.band ? `${employer.band} employees` : "Watchlist employer"}
             {employer.sector ? ` · ${employer.sector}` : ""}
+            {employer.official_name &&
+              employer.official_name.toLowerCase() !== employer.name.toLowerCase() &&
+              ` · entered as ${employer.name}`}
           </div>
         </div>
         <div className="spacer" />

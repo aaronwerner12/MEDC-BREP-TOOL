@@ -105,7 +105,7 @@ async function readDesk(): Promise<DeskData> {
     const signals = (await sql`
       select s.id, s.employer_id,
              coalesce(
-               e.name,
+               e.official_name, e.name,
                s.raw->>'Recipient Name',
                s.raw->>'job_site_name',
                s.raw->>'company_name',
@@ -122,7 +122,7 @@ async function readDesk(): Promise<DeskData> {
     `) as SignalRow[];
 
     const employers = (await sql`
-      select id, name, band, sector
+      select id, coalesce(official_name, name) as name, band, sector
       from employers
       where active = true and coalesce(segment, 'medc') = 'medc'
       order by name

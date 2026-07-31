@@ -5,10 +5,8 @@ import { revalidatePath } from "next/cache";
 import { runAllFeeds } from "@/lib/pipeline";
 import { generateEmployerBrief, type BriefSignal } from "@/lib/brief";
 import { generateCompanyProfile } from "@/lib/profile";
-import { fetchCompanyNews } from "@/lib/news";
-import { scoreSignal } from "@/lib/score";
-import { ingestSignal } from "@/lib/ingest";
-import type { NormalizedSignal } from "@/lib/types";
+import { ingestEmployerNews } from "@/lib/newsPipeline";
+import { discoverMcKinneyEmployers } from "@/lib/discover";
 import { loadEmployers } from "@/lib/employers";
 
 // Server action: mark a signal handled so it drops out of the open queue.
@@ -65,14 +63,11 @@ export async function addBusiness(input: {
   return { ok: true };
 }
 
-const slugify = (s: string) =>
-  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 90);
-
 // Server action: scan the web for recent news about an employer and ingest each
 // significant item as an indicative signal.
 export async function scanNews(
   employerId: number
-): Promise<{ ok: boolean; added?: number; found?: number; error?: string }> {
+): Promise<{ ok: boolean; added?: number; error?: string }> {
   const emp = (
     (await sql`select id, name, sector from employers where id = ${employerId}`) as {
       id: number;
@@ -82,37 +77,56 @@ export async function scanNews(
   )[0];
   if (!emp) return { ok: false, error: "Employer not found." };
 
-  let items;
+  const employers = await loadEmployers();
+  let added: number;
   try {
-    items = await fetchCompanyNews({ name: emp.name, sector: emp.sector });
+    added = await ingestEmployerNews(emp, employers);
+    await sql`update employers set news_scanned_at = now() where id = ${employerId}`;
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "News lookup failed." };
   }
 
-  const employers = await loadEmployers();
+  revalidatePath(`/employer/${employerId}`);
+  revalidatePath("/");
+  return { ok: true, added };
+}
+
+// Server action: web-discover major McKinney employers and add them to the
+// tracked directory (segment 'mckinney'). Flagged as needs-verification.
+export async function discoverEmployers(): Promise<{
+  ok: boolean;
+  added?: number;
+  found?: number;
+  error?: string;
+}> {
+  let found;
+  try {
+    found = await discoverMcKinneyEmployers();
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Discovery failed." };
+  }
+
   let added = 0;
-  for (const it of items) {
-    const sig: NormalizedSignal = {
-      source: "news",
-      tier: "indicative",
-      externalId: `news:${employerId}:${slugify(it.url || it.headline)}`,
-      companyName: emp.name,
-      observedText: `${it.headline}. ${it.summary}`.trim(),
-      sourceUrl: it.url || undefined,
-      eventDate: it.date || undefined,
-      raw: { news: true, ...it },
-    };
+  for (const f of found) {
+    const name = f.name.trim();
+    if (!name) continue;
+    const sector = (f.sector ?? "").trim() || null;
     try {
-      const scored = await scoreSignal(sig, employers);
-      if (await ingestSignal(scored)) added++;
+      const rows = (await sql`
+        insert into employers (name, sector, segment, active)
+        values (${name}, ${sector}, 'mckinney', true)
+        on conflict (name) do nothing
+        returning id
+      `) as { id: number }[];
+      if (rows.length > 0) added++;
     } catch {
-      // skip an item that fails to score/ingest
+      // skip a bad row
     }
   }
 
-  revalidatePath(`/employer/${employerId}`);
+  revalidatePath("/businesses");
   revalidatePath("/");
-  return { ok: true, added, found: items.length };
+  return { ok: true, added, found: found.length };
 }
 
 // Server action: fetch and cache a web-sourced company profile for one

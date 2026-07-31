@@ -84,9 +84,10 @@ export async function ensureSchema(): Promise<SetupStep[]> {
 
   await run("add employer segment + profile columns", () => sql`
     alter table employers
-      add column if not exists segment    text default 'medc',
-      add column if not exists profile    text,
-      add column if not exists profile_at timestamptz`);
+      add column if not exists segment         text default 'medc',
+      add column if not exists profile         text,
+      add column if not exists profile_at      timestamptz,
+      add column if not exists news_scanned_at timestamptz`);
 
   await run("create table risk_snapshots", () => sql`
     create table if not exists risk_snapshots (

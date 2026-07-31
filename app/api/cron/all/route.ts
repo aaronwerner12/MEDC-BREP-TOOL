@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { runAllFeeds } from "@/lib/pipeline";
+import { scanNewsBatch } from "@/lib/newsPipeline";
 
 export const maxDuration = 60;
+
+// How many employers to news-scan per daily run (round-robin, oldest first).
+const NEWS_BATCH = 6;
 
 // Single daily dispatcher that runs every feed. Consolidating the per-feed
 // crons into one keeps the project within the Vercel Hobby plan's two-cron
@@ -14,5 +18,16 @@ function authorized(req: Request) {
 export async function GET(req: Request) {
   if (!authorized(req)) return new NextResponse("Unauthorized", { status: 401 });
   const ran = await runAllFeeds();
-  return NextResponse.json({ ran });
+
+  // Bounded daily news scan (only when web search / Anthropic is configured).
+  let news: { scanned: number; added: number } | { error: string } | null = null;
+  if (process.env.ANTHROPIC_API_KEY) {
+    try {
+      news = await scanNewsBatch(NEWS_BATCH);
+    } catch (e) {
+      news = { error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  return NextResponse.json({ ran, news });
 }

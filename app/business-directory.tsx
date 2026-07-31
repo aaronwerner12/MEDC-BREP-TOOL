@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { addBusiness } from "./actions";
+import { addBusiness, discoverEmployers } from "./actions";
 
 export type DirStatus = "risk" | "growth" | "watch" | "none";
 
@@ -25,6 +25,8 @@ export function BusinessDirectory({ employers }: { employers: DirEmployer[] }) {
   const [sector, setSector] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [discoverMsg, setDiscoverMsg] = useState<string | null>(null);
+  const [discovering, startDiscover] = useTransition();
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -89,6 +91,27 @@ export function BusinessDirectory({ employers }: { employers: DirEmployer[] }) {
           </button>
         </div>
         {msg && <div className="add-biz-msg">{msg}</div>}
+        <div className="discover-row">
+          <button
+            className="handle"
+            type="button"
+            disabled={discovering}
+            onClick={() =>
+              startDiscover(async () => {
+                setDiscoverMsg(null);
+                const r = await discoverEmployers();
+                setDiscoverMsg(
+                  r.ok
+                    ? `Found ${r.found ?? 0}, added ${r.added ?? 0} new. Review and prune below.`
+                    : r.error ?? "Discovery failed."
+                );
+              })
+            }
+          >
+            {discovering ? "Discovering…" : "Discover McKinney employers (web)"}
+          </button>
+          {discoverMsg && <span className="add-biz-msg" style={{ margin: 0 }}>{discoverMsg}</span>}
+        </div>
       </form>
 
       <div className="biz-search">

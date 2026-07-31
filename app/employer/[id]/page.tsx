@@ -10,6 +10,7 @@ import {
   FRESHNESS_MONTHS,
 } from "@/lib/risk";
 import { parseProfile } from "@/lib/profile";
+import { parseBrief } from "@/lib/brief";
 import { BriefButton } from "../../brief-button";
 import { ProfileButton } from "../../profile-button";
 import { NewsButton } from "../../news-button";
@@ -305,10 +306,28 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
             )}
           </div>
         </div>
-        <p className={`brief-body ${employer.brief ? "" : "muted"}`}>
-          {employer.brief ??
-            "No briefing yet. Generate one to get a short, grounded read of this employer's current signals."}
-        </p>
+        {employer.brief ? (
+          (() => {
+            const { fields, text } = parseBrief(employer.brief);
+            return fields.length > 0 ? (
+              <dl className="profile-list">
+                {fields.map((f) => (
+                  <div className="profile-row" key={f.label}>
+                    <dt className="profile-label">{f.label}</dt>
+                    <dd className="profile-value">{f.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="brief-body">{text}</p>
+            );
+          })()
+        ) : (
+          <p className="brief-body muted">
+            No briefing yet. Generate one to get a short, grounded read of this employer&rsquo;s
+            current signals.
+          </p>
+        )}
       </div>
 
       {/* Web news scan. Results land as indicative signals below and in the queue. */}

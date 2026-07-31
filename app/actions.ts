@@ -9,7 +9,7 @@ import { ingestEmployerNews } from "@/lib/newsPipeline";
 import { discoverMcKinneyEmployers } from "@/lib/discover";
 import { loadEmployers } from "@/lib/employers";
 import { ensureSchema } from "@/lib/setup";
-import { aiEnabled, aiDisabledReason } from "@/lib/ai";
+import { aiEnabled, aiDisabledReason, friendlyAiError } from "@/lib/ai";
 
 // Server action: mark a signal handled so it drops out of the open queue.
 export async function markHandled(formData: FormData) {
@@ -106,7 +106,7 @@ export async function scanNews(
   try {
     added = await ingestEmployerNews(emp, employers);
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "News lookup failed." };
+    return { ok: false, error: friendlyAiError(e) };
   }
   // Best-effort: never let the tracking timestamp fail the scan.
   try {
@@ -139,7 +139,7 @@ export async function discoverEmployers(): Promise<{
   try {
     found = await discoverMcKinneyEmployers();
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Discovery failed." };
+    return { ok: false, error: friendlyAiError(e) };
   }
 
   let added = 0;
@@ -212,7 +212,7 @@ export async function generateProfile(
       }
     }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Profile lookup failed." };
+    return { ok: false, error: friendlyAiError(e) };
   }
 
   revalidatePath(`/employer/${employerId}`);
@@ -260,7 +260,7 @@ export async function generateBrief(
     });
     await sql`update employers set brief = ${brief}, brief_at = now() where id = ${employerId}`;
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Briefing failed." };
+    return { ok: false, error: friendlyAiError(e) };
   }
 
   revalidatePath(`/employer/${employerId}`);

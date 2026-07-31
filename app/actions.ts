@@ -8,6 +8,7 @@ import { generateCompanyProfile } from "@/lib/profile";
 import { ingestEmployerNews } from "@/lib/newsPipeline";
 import { discoverMcKinneyEmployers } from "@/lib/discover";
 import { loadEmployers } from "@/lib/employers";
+import { ensureSchema } from "@/lib/setup";
 
 // Server action: mark a signal handled so it drops out of the open queue.
 export async function markHandled(formData: FormData) {
@@ -77,13 +78,24 @@ export async function scanNews(
   )[0];
   if (!emp) return { ok: false, error: "Employer not found." };
 
+  try {
+    await ensureSchema();
+  } catch {
+    // best-effort schema upgrade
+  }
+
   const employers = await loadEmployers();
   let added: number;
   try {
     added = await ingestEmployerNews(emp, employers);
-    await sql`update employers set news_scanned_at = now() where id = ${employerId}`;
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "News lookup failed." };
+  }
+  // Best-effort: never let the tracking timestamp fail the scan.
+  try {
+    await sql`update employers set news_scanned_at = now() where id = ${employerId}`;
+  } catch {
+    // ignore
   }
 
   revalidatePath(`/employer/${employerId}`);
@@ -99,6 +111,12 @@ export async function discoverEmployers(): Promise<{
   found?: number;
   error?: string;
 }> {
+  try {
+    await ensureSchema();
+  } catch {
+    // best-effort schema upgrade
+  }
+
   let found;
   try {
     found = await discoverMcKinneyEmployers();

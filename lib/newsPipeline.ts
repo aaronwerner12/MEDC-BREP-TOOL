@@ -3,6 +3,7 @@ import { scoreSignal } from "./score";
 import { ingestSignal } from "./ingest";
 import { loadEmployers, type EmployerRow } from "./employers";
 import { fetchCompanyNews } from "./news";
+import { ensureSchema } from "./setup";
 import type { NormalizedSignal } from "./types";
 
 const slugify = (s: string) =>
@@ -43,6 +44,12 @@ export async function ingestEmployerNews(emp: EmpLite, employers: EmployerRow[])
 // Round-robin daily batch: scan the least-recently-scanned employers, bounded to
 // control web-search cost, so everyone gets covered over successive days.
 export async function scanNewsBatch(limit: number): Promise<{ scanned: number; added: number }> {
+  try {
+    await ensureSchema();
+  } catch {
+    // best-effort schema upgrade
+  }
+
   const emps = (await sql`
     select id, name, sector
     from employers

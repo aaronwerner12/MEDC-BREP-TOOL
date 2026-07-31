@@ -38,18 +38,30 @@ function extractJson(text: string): Record<string, unknown> | null {
   const a = text.indexOf("{");
   const b = text.lastIndexOf("}");
   if (a === -1 || b <= a) return null;
-  try {
-    const parsed = JSON.parse(text.slice(a, b + 1));
-    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
-  } catch {
-    return null;
+  const candidate = text.slice(a, b + 1);
+  // The model sometimes wraps values across multiple lines, putting literal
+  // newlines/tabs inside string values. Those are invalid in JSON and make
+  // JSON.parse throw. Collapse raw control characters to spaces first; JSON
+  // tolerates extra whitespace between tokens, and this rescues the values.
+  const attempts = [candidate, candidate.replace(/[\r\n\t]+/g, " ")];
+  for (const c of attempts) {
+    try {
+      const parsed = JSON.parse(c);
+      if (parsed && typeof parsed === "object") return parsed as Record<string, unknown>;
+    } catch {
+      // try the next form
+    }
   }
+  return null;
 }
 
 function clean(v: unknown): string {
   return String(v ?? "")
-    .trim()
-    .replace(/\s*—\s*/g, ", ");
+    .replace(/\s*—\s*/g, ", ")
+    .replace(/\s+/g, " ") // collapse internal line breaks / runs of whitespace
+    .replace(/\s+;\s+/g, "; ") // tidy stray "word ; word" from wrapped values
+    .replace(/^[\s;,]+/, "")
+    .trim();
 }
 
 // Parse the stored profile column into structured fields. Handles both the new
@@ -80,21 +92,23 @@ export async function generateCompanyProfile(input: {
   city?: string;
 }): Promise<{ profile: string; officialName: string | null }> {
   const loc = input.city ?? "McKinney, Texas";
-  const prompt = `Compile a short public business profile for "${input.name}"${
+  const prompt = `Compile a short, current public business profile for "${input.name}"${
     input.sector ? ` (${input.sector})` : ""
-  }, focusing on its presence in ${loc}. Use web search for current public information. Report ONLY facts supported by the sources you find and write "unknown" for any field you cannot verify.
+  }, focusing on its presence in ${loc}. Use web search for present-day public information. Describe the company as it operates today. If it was renamed, merged, or absorbed into a parent, profile the current operating entity and put its current name in officialName. Report ONLY facts supported by the sources you find and write "unknown" for any field you cannot verify.
 
-Return ONLY a JSON object with these exact keys:
+Return ONLY a single JSON object and nothing else. No preamble, no explanation before it, no notes after it. Each value must be plain text on ONE line with no line breaks inside it.
+
 {
-  "officialName": "the company's official / legal / commonly-used business name, or empty string if it does not differ from what was given",
+  "officialName": "the current official / legal / commonly-used business name if it differs from what was given, otherwise an empty string",
   "whatTheyDo": "one plain sentence on the business",
   "headquarters": "city and state of the corporate headquarters",
-  "localPresence": "the McKinney or Collin County site or role, or 'unknown'",
+  "localPresence": "the McKinney or Collin County site or role, or unknown",
   "employees": "approximate headcount overall, and local if known",
-  "executives": "CEO and any other named leaders",
+  "executives": "current CEO and any other named leaders",
   "ownership": "public (with ticker), private, or parent company"
 }
-Keep each field short (one line, under 25 words), plain direct voice, no em dashes. Do not invent numbers, names, or facts. Write "unknown" rather than guessing.`;
+
+Keep each value short (under 25 words), plain direct voice, no em dashes. Do not invent numbers, names, or facts. Write "unknown" rather than guessing. Do not add commentary or disclaimers outside the JSON.`;
 
   const res = await client().messages.create({
     model: MODEL,

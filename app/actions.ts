@@ -85,9 +85,9 @@ export async function removeBusiness(id: number): Promise<{ ok: boolean; error?:
 export async function scanNews(
   employerId: number
 ): Promise<{ ok: boolean; added?: number; error?: string }> {
-  if (!aiEnabled()) return { ok: false, error: aiDisabledReason() };
+  // Free feed (Google News RSS): no API key required.
   const emp = (
-    (await sql`select id, name, sector from employers where id = ${employerId}`) as {
+    (await sql`select id, coalesce(official_name, name) as name, sector from employers where id = ${employerId}`) as {
       id: number;
       name: string;
       sector: string | null;
@@ -106,7 +106,7 @@ export async function scanNews(
   try {
     added = await ingestEmployerNews(emp, employers);
   } catch (e) {
-    return { ok: false, error: friendlyAiError(e) };
+    return { ok: false, error: e instanceof Error ? e.message : "News lookup failed." };
   }
   // Best-effort: never let the tracking timestamp fail the scan.
   try {

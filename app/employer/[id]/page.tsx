@@ -333,21 +333,19 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
         )}
       </div>
 
-      {/* Web news scan. Results land as indicative signals below and in the queue. */}
+      {/* Free Google News scan. Results land as indicative signals below and in
+          the queue. No API key needed. */}
       <div className="brief card" style={{ borderLeftColor: "var(--sunflower)" }}>
         <div className="brief-head">
           <span className="brief-title">Recent news</span>
           <div className="brief-actions">
-            {ai ? (
-              <NewsButton employerId={employer.id} />
-            ) : (
-              <span className="brief-when">AI features are off</span>
-            )}
+            <NewsButton employerId={employer.id} />
           </div>
         </div>
         <p className="brief-body muted">
-          Scan the web for recent significant news. Results appear as indicative signals in the
-          queue and below (confirm before outreach).
+          Scan Google News for recent material coverage (layoffs, expansions, M&amp;A, leadership,
+          litigation). Free. Results appear as indicative signals in the queue and below (confirm
+          before outreach).
         </p>
       </div>
 

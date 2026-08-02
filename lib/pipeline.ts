@@ -8,6 +8,7 @@ import { usaspendingSignals } from "../adapters/usaspending";
 import { twcWarnSignals } from "../adapters/twcWarn";
 import { secEdgarSignals } from "../adapters/secEdgar";
 import { echoSignals } from "../adapters/echo";
+import { googleNewsSignals } from "../adapters/googleNews";
 
 interface FeedDef {
   source: string;
@@ -16,6 +17,9 @@ interface FeedDef {
   // those we clear the existing unhandled rows before inserting the fresh set,
   // so superseded signals (e.g. old per-contract USASpending rows) don't linger.
   replaceUnhandled?: boolean;
+  // Per-feed contribution cap. Defaults to MAX_PER_FEED. News fans out across
+  // every watchlist employer, so it needs a higher ceiling.
+  maxItems?: number;
 }
 
 const FEEDS: FeedDef[] = [
@@ -27,6 +31,10 @@ const FEEDS: FeedDef[] = [
   { source: "sec_edgar", run: secEdgarSignals },
   // ECHO reflects current compliance state, so replace unhandled rows each run.
   { source: "epa_echo", run: echoSignals, replaceUnhandled: true },
+  // Free Google News RSS feed. Discrete articles (no replaceUnhandled); deduped
+  // by article id via unique(source, external_id). Higher cap since it spans the
+  // whole watchlist.
+  { source: "news", run: googleNewsSignals, maxItems: 60 },
 ];
 
 // Cap how many items each feed contributes so a single pull stays well within
@@ -53,7 +61,7 @@ export async function runAllFeeds(): Promise<FeedResult[]> {
     FEEDS.map(async (feed) => {
       try {
         const raw = await feed.run(employers);
-        const capped = raw.slice(0, MAX_PER_FEED);
+        const capped = raw.slice(0, feed.maxItems ?? MAX_PER_FEED);
         return { feed, raw: capped, dropped: raw.length - capped.length, error: null as string | null };
       } catch (err) {
         return { feed, raw: [] as NormalizedSignal[], dropped: 0, error: err instanceof Error ? err.message : String(err) };

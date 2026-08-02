@@ -150,15 +150,21 @@ function classify(sig: NormalizedSignal): Classification {
     case "sec_edgar":
       return classifySec(sig);
 
-    case "news":
-      // News is indicative; treat as a watch item to confirm. The adapter sets
-      // the text; we do not infer risk from a headline without confirmation.
+    case "news": {
+      // News is indicative: always a watch item a human confirms, never an
+      // auto-flagged risk from a headline alone. The adapter's material filter
+      // tags a BREP category and a lean; we use those for display and to nudge
+      // priority so a layoff headline sorts above a routine mention.
+      const raw = (sig.raw ?? {}) as { newsCategory?: string; lean?: string };
+      const category = raw.newsCategory || "Signal";
+      const priority = raw.lean === "risk" ? 42 : raw.lean === "growth" ? 38 : 34;
       return {
         signalType: "neutral",
-        category: "Signal",
-        priority: 30,
-        recommendedAction: "Indicative news. Confirm before any outreach.",
+        category,
+        priority,
+        recommendedAction: "Indicative news. Confirm the story before any outreach.",
       };
+    }
 
     default:
       return {

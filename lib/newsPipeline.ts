@@ -1,13 +1,9 @@
 import { sql } from "./db";
-import { scoreSignal } from "./score";
+import { scoreSignalRules } from "./rulesScore";
 import { ingestSignal } from "./ingest";
 import { loadEmployers, type EmployerRow } from "./employers";
-import { fetchCompanyNews } from "./news";
+import { googleNewsForEmployer } from "../adapters/googleNews";
 import { ensureSchema } from "./setup";
-import type { NormalizedSignal } from "./types";
-
-const slugify = (s: string) =>
-  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 90);
 
 interface EmpLite {
   id: number;
@@ -15,24 +11,33 @@ interface EmpLite {
   sector: string | null;
 }
 
-// Scan the web for one employer's recent news and ingest each item as an
-// indicative signal. Returns how many new items were added.
+// Turn a lite employer row into the EmployerRow shape the free news adapter and
+// the rules scorer expect. We look up the full row so entity matching and the
+// display name (including any official_name alias) stay consistent.
+function toEmployerRow(emp: EmpLite, employers: EmployerRow[]): EmployerRow {
+  return (
+    employers.find((e) => e.id === emp.id) ?? {
+      id: emp.id,
+      name: emp.name,
+      aliases: [],
+      uei: null,
+      band: null,
+      sector: emp.sector,
+      addresses: [],
+      active: true,
+    }
+  );
+}
+
+// Scan the free Google News feed for one employer and ingest each material item
+// as an indicative signal. No API key, no tokens. Returns how many were added.
 export async function ingestEmployerNews(emp: EmpLite, employers: EmployerRow[]): Promise<number> {
-  const items = await fetchCompanyNews({ name: emp.name, sector: emp.sector });
+  const row = toEmployerRow(emp, employers);
+  const items = await googleNewsForEmployer(row);
   let added = 0;
-  for (const it of items) {
-    const sig: NormalizedSignal = {
-      source: "news",
-      tier: "indicative",
-      externalId: `news:${emp.id}:${slugify(it.url || it.headline)}`,
-      companyName: emp.name,
-      observedText: `${it.headline}. ${it.summary}`.trim(),
-      sourceUrl: it.url || undefined,
-      eventDate: it.date || undefined,
-      raw: { news: true, ...it },
-    };
+  for (const sig of items) {
     try {
-      const scored = await scoreSignal(sig, employers);
+      const scored = scoreSignalRules(sig, employers);
       if (await ingestSignal(scored)) added++;
     } catch {
       // skip an item that fails to score/ingest
@@ -41,8 +46,9 @@ export async function ingestEmployerNews(emp: EmpLite, employers: EmployerRow[])
   return added;
 }
 
-// Round-robin daily batch: scan the least-recently-scanned employers, bounded to
-// control web-search cost, so everyone gets covered over successive days.
+// Round-robin batch: scan the least-recently-scanned employers first so everyone
+// gets covered over successive runs. Free, so the bound is only about staying
+// within the function time budget, not cost.
 export async function scanNewsBatch(limit: number): Promise<{ scanned: number; added: number }> {
   try {
     await ensureSchema();
@@ -51,7 +57,7 @@ export async function scanNewsBatch(limit: number): Promise<{ scanned: number; a
   }
 
   const emps = (await sql`
-    select id, name, sector
+    select id, coalesce(official_name, name) as name, sector
     from employers
     where active = true
     order by news_scanned_at asc nulls first
@@ -62,8 +68,7 @@ export async function scanNewsBatch(limit: number): Promise<{ scanned: number; a
   const employers = await loadEmployers();
   let added = 0;
 
-  // Small concurrency so the batch fits the function time budget.
-  const CONCURRENCY = 3;
+  const CONCURRENCY = 4;
   let next = 0;
   async function worker() {
     while (next < emps.length) {

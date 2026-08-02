@@ -484,6 +484,13 @@ a {
 .brief-body.muted {
   color: var(--muted);
 }
+.btn-with-msg {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
 .profile-list {
   margin: 12px 0 0;
   display: grid;

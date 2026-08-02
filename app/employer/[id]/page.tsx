@@ -246,7 +246,8 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
         );
       })()}
 
-      {/* Web-sourced company profile. */}
+      {/* Company profile. Free-first: Wikidata firmographics, with an optional
+          AI web lookup as fallback when enabled. */}
       <div className="brief card" style={{ borderLeftColor: "var(--navy)" }}>
         <div className="brief-head">
           <span className="brief-title">Company profile</span>
@@ -254,11 +255,7 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
             {employer.profile_at && (
               <span className="brief-when">Updated {fmtDate(employer.profile_at)}</span>
             )}
-            {ai ? (
-              <ProfileButton employerId={employer.id} hasProfile={!!employer.profile} />
-            ) : (
-              <span className="brief-when">AI features are off</span>
-            )}
+            <ProfileButton employerId={employer.id} hasProfile={!!employer.profile} />
           </div>
         </div>
         {employer.profile ? (
@@ -289,7 +286,7 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
         ) : (
           <p className="brief-body muted">
             No profile yet. Look up public business info (location, employees, executives,
-            ownership) from the web.
+            ownership). Free, from Wikidata.
           </p>
         )}
       </div>

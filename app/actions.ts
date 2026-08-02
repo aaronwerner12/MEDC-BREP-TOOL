@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { runAllFeeds } from "@/lib/pipeline";
 import { generateEmployerBrief, type BriefSignal } from "@/lib/brief";
 import { generateCompanyProfile } from "@/lib/profile";
+import { fetchWikidataProfile } from "@/lib/wikidata";
 import { ingestEmployerNews } from "@/lib/newsPipeline";
 import { discoverMcKinneyEmployers } from "@/lib/discover";
 import { loadEmployers } from "@/lib/employers";
@@ -165,12 +166,34 @@ export async function discoverEmployers(): Promise<{
   return { ok: true, added, found: found.length };
 }
 
-// Server action: fetch and cache a web-sourced company profile for one
-// employer (location, employees, executives, ownership).
+// Store a profile string and, if the source found a different official name, set
+// it as the heading while keeping the entered name as a matching alias.
+async function storeProfile(
+  employerId: number,
+  enteredName: string,
+  profile: string,
+  officialName: string | null
+): Promise<void> {
+  await sql`update employers set profile = ${profile}, profile_at = now() where id = ${employerId}`;
+  if (officialName && officialName.toLowerCase() !== enteredName.toLowerCase() && officialName.length >= 2) {
+    try {
+      await sql`
+        update employers
+        set official_name = ${officialName},
+            aliases = case when ${enteredName} = any(aliases) then aliases else aliases || array[${enteredName}] end
+        where id = ${employerId}`;
+    } catch {
+      // best-effort name update
+    }
+  }
+}
+
+// Server action: fetch and cache a company profile for one employer. Free-first:
+// tries Wikidata (keyless firmographics) and only falls back to the AI
+// web-search profile if Wikidata has no confident match and AI is enabled.
 export async function generateProfile(
   employerId: number
-): Promise<{ ok: boolean; error?: string }> {
-  if (!aiEnabled()) return { ok: false, error: aiDisabledReason() };
+): Promise<{ ok: boolean; source?: "wikidata" | "ai"; error?: string }> {
   const emp = (
     (await sql`select id, name, sector from employers where id = ${employerId}`) as {
       id: number;
@@ -186,38 +209,42 @@ export async function generateProfile(
     // best-effort
   }
 
+  // 1. Free path: Wikidata.
+  try {
+    const wd = await fetchWikidataProfile({ name: emp.name });
+    if (wd) {
+      await storeProfile(employerId, emp.name, JSON.stringify(wd.profile), wd.officialName);
+      revalidatePath(`/employer/${employerId}`);
+      revalidatePath("/");
+      return { ok: true, source: "wikidata" };
+    }
+  } catch {
+    // fall through to AI / not-found
+  }
+
+  // 2. Optional paid path: AI web search, only if enabled.
+  if (!aiEnabled()) {
+    return {
+      ok: false,
+      error:
+        "No public record found for this name in the free source. Try the official company name, or enable AI features for a deeper web lookup.",
+    };
+  }
+
   try {
     const { profile, officialName } = await generateCompanyProfile({
       name: emp.name,
       sector: emp.sector,
       city: "McKinney, Texas",
     });
-    await sql`update employers set profile = ${profile}, profile_at = now() where id = ${employerId}`;
-
-    // If the web found a different official name, use it as the heading and keep
-    // the entered name as an alias so feed matching is unaffected.
-    if (
-      officialName &&
-      officialName.toLowerCase() !== emp.name.toLowerCase() &&
-      officialName.length >= 2
-    ) {
-      try {
-        await sql`
-          update employers
-          set official_name = ${officialName},
-              aliases = case when ${emp.name} = any(aliases) then aliases else aliases || array[${emp.name}] end
-          where id = ${employerId}`;
-      } catch {
-        // best-effort name update
-      }
-    }
+    await storeProfile(employerId, emp.name, profile, officialName);
   } catch (e) {
     return { ok: false, error: friendlyAiError(e) };
   }
 
   revalidatePath(`/employer/${employerId}`);
   revalidatePath("/");
-  return { ok: true };
+  return { ok: true, source: "ai" };
 }
 
 // Server action: generate and cache a grounded AI briefing for one employer,

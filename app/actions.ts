@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { runAllFeeds } from "@/lib/pipeline";
 import { generateEmployerBrief, type BriefSignal } from "@/lib/brief";
 import { generateCompanyProfile } from "@/lib/profile";
-import { fetchWikidataProfile } from "@/lib/wikidata";
+import { resolveFreeProfile } from "@/lib/companyProfile";
 import { ingestEmployerNews } from "@/lib/newsPipeline";
 import { discoverMcKinneyEmployers } from "@/lib/discover";
 import { loadEmployers } from "@/lib/employers";
@@ -189,11 +189,12 @@ async function storeProfile(
 }
 
 // Server action: fetch and cache a company profile for one employer. Free-first:
-// tries Wikidata (keyless firmographics) and only falls back to the AI
-// web-search profile if Wikidata has no confident match and AI is enabled.
+// runs the free source chain (Wikidata, OpenCorporates, Google Knowledge Graph,
+// the company website) and only falls back to the AI web-search profile if the
+// free chain finds nothing and AI is enabled.
 export async function generateProfile(
   employerId: number
-): Promise<{ ok: boolean; source?: "wikidata" | "ai"; error?: string }> {
+): Promise<{ ok: boolean; source?: "free" | "ai"; sources?: string[]; error?: string }> {
   const emp = (
     (await sql`select id, name, sector from employers where id = ${employerId}`) as {
       id: number;
@@ -209,14 +210,14 @@ export async function generateProfile(
     // best-effort
   }
 
-  // 1. Free path: Wikidata.
+  // 1. Free path: the source chain.
   try {
-    const wd = await fetchWikidataProfile({ name: emp.name });
-    if (wd) {
-      await storeProfile(employerId, emp.name, JSON.stringify(wd.profile), wd.officialName);
+    const free = await resolveFreeProfile({ name: emp.name, sector: emp.sector });
+    if (free) {
+      await storeProfile(employerId, emp.name, JSON.stringify(free.profile), free.officialName);
       revalidatePath(`/employer/${employerId}`);
       revalidatePath("/");
-      return { ok: true, source: "wikidata" };
+      return { ok: true, source: "free", sources: free.sources };
     }
   } catch {
     // fall through to AI / not-found
@@ -227,7 +228,7 @@ export async function generateProfile(
     return {
       ok: false,
       error:
-        "No public record found for this name in the free source. Try the official company name, or enable AI features for a deeper web lookup.",
+        "No public record found for this name in the free sources. Try the official company name, or enable AI features for a deeper web lookup.",
     };
   }
 

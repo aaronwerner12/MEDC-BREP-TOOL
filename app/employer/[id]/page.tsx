@@ -286,7 +286,8 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
         ) : (
           <p className="brief-body muted">
             No profile yet. Look up public business info (location, employees, executives,
-            ownership). Free, from Wikidata.
+            ownership). Free, from public sources (Wikidata, OpenCorporates, Google, the company
+            site).
           </p>
         )}
       </div>

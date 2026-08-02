@@ -484,6 +484,27 @@ a {
 .brief-body.muted {
   color: var(--muted);
 }
+.profile-sources {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.profile-sources .ps-label {
+  font-weight: 600;
+}
+.profile-sources .ps-on {
+  color: var(--mint-ink, #2f7d5b);
+}
+.profile-sources .ps-off {
+  color: var(--muted);
+  opacity: 0.7;
+}
+.profile-sources .ps-hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
 .btn-with-msg {
   display: inline-flex;
   align-items: center;

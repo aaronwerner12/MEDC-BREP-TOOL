@@ -26,6 +26,47 @@ The flow: **adapter → `scoreSignal` → `ingestSignal` → Neon → digest**. 
 3. Copy `.env.example` to `.env.local` and fill in the values. Set the same vars in Vercel (Project → Settings → Environment Variables), including `CRON_SECRET`.
 4. Deploy to Vercel. `vercel.json` registers the crons automatically.
 
+## Cost: runs free by default
+
+The whole desk runs at zero per-use cost. Signal scoring is rules-based (no
+model call), and every feed is a free public source:
+
+- Feeds: USASpending, Texas WARN, SEC EDGAR, EPA/OSHA ECHO, and news (Google
+  News RSS). No keys.
+- Company profiles: a free source chain (see below).
+- Briefings: a deterministic, rules-based synthesis of the employer's own
+  signals.
+
+`ANTHROPIC_API_KEY` is **optional**. It only powers two cosmetic upgrades: nicer
+briefing prose, and a deeper web profile lookup for firms with no free record.
+If the key is absent (or `ENABLE_AI_FEATURES=off`), those features fall back to
+the free versions automatically. Set a prepaid balance or spend limit in the
+Anthropic Console if you do use it, so it can never overspend.
+
+### Optional free profile keys (for small private firms)
+
+Company profiles resolve free-first through a chain: **Wikidata → OpenCorporates
+→ Google Knowledge Graph → the company website → (AI, only if enabled)**. Fields
+merge from all sources; anything unknown is dropped.
+
+Wikidata (no key) covers the larger employers well. Small **private** firms are
+not in Wikidata, so to resolve them for free, set these two free keys in Vercel
+(Settings → Environment Variables), then redeploy. Each source is skipped when
+its key is blank, so the chain always runs.
+
+- `OPENCORPORATES_API_TOKEN` — legal name, registered address, officers, and
+  status. Best coverage for private firms. Free token:
+  https://opencorporates.com/api_accounts/new
+- `GOOGLE_KG_API_KEY` — short description and official website. A standard free
+  Google Cloud API key with the Knowledge Graph Search API enabled:
+  https://console.cloud.google.com/apis/library/kgsearch.googleapis.com
+
+Note: employee counts for very small private firms are not in any free
+structured source, so that field may stay "unknown" even with both keys set.
+
+To backfill everyone at once, use the **Businesses** page: "Fill missing
+profiles (free)" and "Scan news for all (free)".
+
 ## The two worked feeds
 
 **USASpending (RTX)** — `adapters/usaspending.ts`. Free public API, no key. Pulls Collin County contract awards for the defense cluster and flags near-term expirations (the leading layoff indicator for a defense site) and new/large awards. Runs weekly.

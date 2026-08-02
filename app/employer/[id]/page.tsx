@@ -287,6 +287,7 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
             site).
           </p>
         )}
+        <ProfileSources />
       </div>
 
       {/* Briefing, grounded in this employer's own signals. Free rules-based
@@ -431,6 +432,39 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
         </>
       )}
     </div>
+  );
+}
+
+// Shows which free profile sources are active, so it is clear at a glance
+// whether the optional (free) keys are wired up. Wikidata and the website need
+// no key; OpenCorporates and Google need a free key each.
+function ProfileSources() {
+  const oc = !!process.env.OPENCORPORATES_API_TOKEN;
+  const kg = !!process.env.GOOGLE_KG_API_KEY;
+  const items: { name: string; on: boolean }[] = [
+    { name: "Wikidata", on: true },
+    { name: "OpenCorporates", on: oc },
+    { name: "Google", on: kg },
+    { name: "Website", on: true },
+  ];
+  const missing = [!oc && "OpenCorporates", !kg && "Google"].filter(Boolean) as string[];
+  return (
+    <p className="profile-sources">
+      <span className="ps-label">Free sources:</span>{" "}
+      {items.map((it, i) => (
+        <span key={it.name} className={it.on ? "ps-on" : "ps-off"}>
+          {it.name} {it.on ? "✓" : "○"}
+          {i < items.length - 1 ? "  ·  " : ""}
+        </span>
+      ))}
+      {missing.length > 0 && (
+        <span className="ps-hint">
+          {" "}
+          Add the {missing.join(" and ")} key{missing.length > 1 ? "s" : ""} to cover small private
+          firms for free.
+        </span>
+      )}
+    </p>
   );
 }
 

@@ -15,7 +15,7 @@ interface Award {
   generated_internal_id?: string;
 }
 
-async function fetchAwards(recipient: string): Promise<Award[]> {
+async function fetchAwards(recipientTerms: string[]): Promise<Award[]> {
   // Rolling window: only look at award activity from the past two years to now.
   const now = new Date();
   const start = new Date(now);
@@ -29,7 +29,7 @@ async function fetchAwards(recipient: string): Promise<Award[]> {
     filters: {
       award_type_codes: ["A", "B", "C", "D"], // contracts
       time_period: [{ start_date: fmt(start), end_date: fmt(now) }],
-      recipient_search_text: [recipient],
+      recipient_search_text: recipientTerms,
       place_of_performance_locations: [COLLIN_COUNTY],
     },
     fields: [
@@ -72,21 +72,35 @@ const EXPIRY_WINDOW_DAYS = 120;
 const NEW_AWARD_MIN = 10_000_000; // a newly started award >= $10M counts as growth
 const NEW_AWARD_RECENT_DAYS = 365;
 
-// Pull federal contracts for the defense cluster in Collin County and emit
-// aggregate, portfolio-level signals rather than one per contract.
+// Pull federal contracts in Collin County for every watchlist employer and emit
+// aggregate, portfolio-level signals. Employers with no federal awards simply
+// return nothing, so covering all is safe; only material portfolio movements
+// (large expiry concentration or a large new award) ever produce a signal.
+const RESOLVE_CONCURRENCY = 5;
+const MAX_EMPLOYERS = 40;
+
 export async function usaspendingSignals(
   employers: EmployerRow[]
 ): Promise<NormalizedSignal[]> {
-  const targets = employers.filter((e) =>
-    [e.name, ...e.aliases].some((t) => /raytheon|rtx|l3|lockheed|northrop/i.test(t))
-  );
+  const targets = employers.filter((e) => e.active !== false).slice(0, MAX_EMPLOYERS);
 
   const out: NormalizedSignal[] = [];
-  for (const e of targets) {
-    const recipient = e.aliases.find((a) => /raytheon|rtx/i.test(a)) ?? e.name;
-    const awards = await fetchAwards(recipient);
-    out.push(...aggregateAwards(awards, e));
+  let next = 0;
+  async function worker() {
+    while (next < targets.length) {
+      const e = targets[next++];
+      // Search by the employer name plus its aliases (helps recall for entities
+      // like Raytheon / RTX). De-duplicate and cap the term list.
+      const terms = Array.from(new Set([e.name, ...(e.aliases ?? [])].map((t) => t.trim()).filter(Boolean))).slice(0, 5);
+      try {
+        const awards = await fetchAwards(terms);
+        out.push(...aggregateAwards(awards, e));
+      } catch {
+        // skip an employer that errors; others continue
+      }
+    }
   }
+  await Promise.all(Array.from({ length: Math.min(RESOLVE_CONCURRENCY, targets.length) }, worker));
   return out;
 }
 

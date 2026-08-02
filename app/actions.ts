@@ -122,6 +122,60 @@ export async function scanNews(
   return { ok: true, added };
 }
 
+// Server action: scan the free news feed for every active employer at once and
+// ingest each material item. Free (Google News RSS), bounded concurrency.
+export async function scanAllNews(): Promise<{
+  ok: boolean;
+  scanned: number;
+  added: number;
+  error?: string;
+}> {
+  try {
+    await ensureSchema();
+  } catch {
+    // best-effort
+  }
+
+  let emps: { id: number; name: string; sector: string | null }[];
+  try {
+    emps = (await sql`
+      select id, coalesce(official_name, name) as name, sector
+      from employers
+      where active = true
+      order by news_scanned_at asc nulls first
+      limit 60
+    `) as { id: number; name: string; sector: string | null }[];
+  } catch (e) {
+    return { ok: false, scanned: 0, added: 0, error: e instanceof Error ? e.message : "Query failed." };
+  }
+  if (emps.length === 0) return { ok: true, scanned: 0, added: 0 };
+
+  const employers = await loadEmployers();
+  let added = 0;
+  const CONCURRENCY = 4;
+  let next = 0;
+  async function worker() {
+    while (next < emps.length) {
+      const e = emps[next++];
+      try {
+        added += await ingestEmployerNews(e, employers);
+      } catch {
+        // skip a failing employer
+      }
+      try {
+        await sql`update employers set news_scanned_at = now() where id = ${e.id}`;
+      } catch {
+        // ignore
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, emps.length) }, worker));
+
+  revalidatePath("/");
+  revalidatePath("/businesses");
+  return { ok: true, scanned: emps.length, added };
+}
+
 // Server action: web-discover major McKinney employers and add them to the
 // tracked directory (segment 'mckinney'). Flagged as needs-verification.
 export async function discoverEmployers(): Promise<{

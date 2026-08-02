@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { addBusiness, discoverEmployers, removeBusiness, fillMissingProfiles } from "./actions";
+import { addBusiness, discoverEmployers, removeBusiness, fillMissingProfiles, scanAllNews } from "./actions";
 
 export type DirStatus = "risk" | "growth" | "watch" | "none";
 
@@ -115,6 +115,9 @@ export function BusinessDirectory({ employers }: { employers: DirEmployer[] }) {
         <div className="discover-row">
           <FillProfilesButton />
         </div>
+        <div className="discover-row">
+          <ScanAllNewsButton />
+        </div>
       </form>
 
       <div className="biz-search">
@@ -178,6 +181,41 @@ function FillProfilesButton() {
     <>
       <button className="handle" type="button" disabled={running} onClick={run}>
         {running ? "Filling profiles…" : "Fill missing profiles (free)"}
+      </button>
+      {msg && <span className="add-biz-msg" style={{ margin: 0 }}>{msg}</span>}
+    </>
+  );
+}
+
+// Scans the free news feed for every tracked company in one go.
+function ScanAllNewsButton() {
+  const [running, setRunning] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  return (
+    <>
+      <button
+        className="handle"
+        type="button"
+        disabled={running}
+        onClick={async () => {
+          if (running) return;
+          setRunning(true);
+          setMsg("Scanning news for every company…");
+          try {
+            const r = await scanAllNews();
+            setMsg(
+              r.ok
+                ? `Scanned ${r.scanned}. Added ${r.added} news signal${r.added === 1 ? "" : "s"}.`
+                : r.error ?? "News scan failed."
+            );
+          } catch (e) {
+            setMsg(e instanceof Error ? e.message : "News scan failed.");
+          } finally {
+            setRunning(false);
+          }
+        }}
+      >
+        {running ? "Scanning news…" : "Scan news for all (free)"}
       </button>
       {msg && <span className="add-biz-msg" style={{ margin: 0 }}>{msg}</span>}
     </>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { runAllFeeds } from "@/lib/pipeline";
+import { fillMissingProfiles } from "@/app/actions";
 
 export const maxDuration = 60;
 
@@ -16,5 +17,17 @@ function authorized(req: Request) {
 export async function GET(req: Request) {
   if (!authorized(req)) return new NextResponse("Unauthorized", { status: 401 });
   const ran = await runAllFeeds();
-  return NextResponse.json({ ran });
+
+  // Best-effort: fill a small batch of missing profiles from the free source
+  // chain each day, so newly added companies self-populate over time. Never let
+  // it fail the feed run.
+  let profiles: { scanned: number; filled: number; remaining: number } | { error: string } | null = null;
+  try {
+    const r = await fillMissingProfiles(8);
+    profiles = { scanned: r.scanned, filled: r.filled, remaining: r.remaining };
+  } catch (e) {
+    profiles = { error: e instanceof Error ? e.message : String(e) };
+  }
+
+  return NextResponse.json({ ran, profiles });
 }

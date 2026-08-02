@@ -248,6 +248,67 @@ export async function generateProfile(
   return { ok: true, source: "ai" };
 }
 
+// Fill profiles for every tracked company that does not have one yet, using the
+// free source chain only (no AI, no cost). Bounded per call so it stays within
+// the serverless time budget; returns how many still remain so the UI can run
+// it again. Shared by the "Fill missing profiles" button and the daily cron.
+export async function fillMissingProfiles(
+  limit = 15
+): Promise<{ ok: boolean; scanned: number; filled: number; remaining: number; error?: string }> {
+  try {
+    await ensureSchema();
+  } catch {
+    // best-effort
+  }
+
+  let emps: { id: number; name: string; sector: string | null }[];
+  try {
+    emps = (await sql`
+      select id, coalesce(official_name, name) as name, sector
+      from employers
+      where active = true and (profile is null or profile = '')
+      order by band nulls last, id
+      limit ${limit}
+    `) as { id: number; name: string; sector: string | null }[];
+  } catch (e) {
+    return { ok: false, scanned: 0, filled: 0, remaining: 0, error: e instanceof Error ? e.message : "Query failed." };
+  }
+
+  let filled = 0;
+  const CONCURRENCY = 3;
+  let next = 0;
+  async function worker() {
+    while (next < emps.length) {
+      const e = emps[next++];
+      try {
+        const free = await resolveFreeProfile({ name: e.name, sector: e.sector });
+        if (free) {
+          await storeProfile(e.id, e.name, JSON.stringify(free.profile), free.officialName);
+          filled++;
+        }
+      } catch {
+        // skip a company that fails; others continue
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, emps.length) }, worker));
+
+  // Count how many are still missing a profile after this batch.
+  let remaining = 0;
+  try {
+    const r = (await sql`
+      select count(*)::int as n from employers where active = true and (profile is null or profile = '')
+    `) as { n: number }[];
+    remaining = r[0]?.n ?? 0;
+  } catch {
+    remaining = 0;
+  }
+
+  revalidatePath("/businesses");
+  revalidatePath("/");
+  return { ok: true, scanned: emps.length, filled, remaining };
+}
+
 // Server action: generate and cache a grounded AI briefing for one employer,
 // synthesized only from that employer's own open signals.
 export async function generateBrief(

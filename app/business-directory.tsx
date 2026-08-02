@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { addBusiness, discoverEmployers, removeBusiness } from "./actions";
+import { addBusiness, discoverEmployers, removeBusiness, fillMissingProfiles } from "./actions";
 
 export type DirStatus = "risk" | "growth" | "watch" | "none";
 
@@ -112,6 +112,9 @@ export function BusinessDirectory({ employers }: { employers: DirEmployer[] }) {
           </button>
           {discoverMsg && <span className="add-biz-msg" style={{ margin: 0 }}>{discoverMsg}</span>}
         </div>
+        <div className="discover-row">
+          <FillProfilesButton />
+        </div>
       </form>
 
       <div className="biz-search">
@@ -126,6 +129,58 @@ export function BusinessDirectory({ employers }: { employers: DirEmployer[] }) {
       <DirGroup title="MEDC watchlist" subtitle="Top notable employers" rows={medc} />
       <DirGroup title="McKinney directory" subtitle="Broader tracked businesses" rows={mck} />
     </div>
+  );
+}
+
+// Fills profiles for every company missing one, using the free source chain.
+// Auto-continues batch by batch until nothing new can be filled.
+function FillProfilesButton() {
+  const [running, setRunning] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function run() {
+    if (running) return;
+    setRunning(true);
+    setMsg("Filling profiles from free sources…");
+    let totalFilled = 0;
+    try {
+      // Loop until no batch makes progress. Each call handles up to 15.
+      // Stop when nothing remains, nothing was scanned, or a batch filled none
+      // (the rest have no free public record).
+      // A hard round cap guards against any unexpected non-convergence.
+      for (let round = 0; round < 20; round++) {
+        const r = await fillMissingProfiles();
+        if (!r.ok) {
+          setMsg(r.error ?? "Could not fill profiles.");
+          break;
+        }
+        totalFilled += r.filled;
+        if (r.remaining === 0) {
+          setMsg(`Done. Filled ${totalFilled}. Every company now has a profile.`);
+          break;
+        }
+        if (r.scanned === 0 || r.filled === 0) {
+          setMsg(
+            `Filled ${totalFilled}. ${r.remaining} company${r.remaining === 1 ? "" : "s"} had no free public record (open one to try an AI lookup).`
+          );
+          break;
+        }
+        setMsg(`Filled ${totalFilled} so far, ${r.remaining} to go…`);
+      }
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Could not fill profiles.");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <>
+      <button className="handle" type="button" disabled={running} onClick={run}>
+        {running ? "Filling profiles…" : "Fill missing profiles (free)"}
+      </button>
+      {msg && <span className="add-biz-msg" style={{ margin: 0 }}>{msg}</span>}
+    </>
   );
 }
 

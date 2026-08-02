@@ -278,13 +278,22 @@ export async function generateProfile(
     // fall through to AI / not-found
   }
 
+  // Free chain came up empty. Build a message that leads with the free fix
+  // (this is a free feature; small private firms need the extra free sources).
+  const hasOC = !!process.env.OPENCORPORATES_API_TOKEN;
+  const hasKg = !!process.env.GOOGLE_KG_API_KEY;
+  const missing = [!hasOC && "OpenCorporates", !hasKg && "Google Knowledge Graph"].filter(
+    Boolean
+  ) as string[];
+  const freeMsg = missing.length
+    ? `No free record found for "${emp.name}". Wikidata only covers larger firms; small private companies need the free ${missing.join(
+        " and "
+      )} key${missing.length > 1 ? "s" : ""} set in your environment to resolve for free.`
+    : `No free record found for "${emp.name}" in the free sources. Try the official or legal company name.`;
+
   // 2. Optional paid path: AI web search, only if enabled.
   if (!aiEnabled()) {
-    return {
-      ok: false,
-      error:
-        "No public record found for this name in the free sources. Try the official company name, or enable AI features for a deeper web lookup.",
-    };
+    return { ok: false, error: freeMsg };
   }
 
   try {
@@ -295,7 +304,14 @@ export async function generateProfile(
     });
     await storeProfile(employerId, emp.name, profile, officialName);
   } catch (e) {
-    return { ok: false, error: friendlyAiError(e) };
+    // Free chain was empty and the AI fallback also failed. Lead with the free
+    // fix rather than the AI billing error.
+    const aiErr = friendlyAiError(e);
+    const creditIssue = /credit|billing/i.test(aiErr);
+    return {
+      ok: false,
+      error: creditIssue ? `${freeMsg} (The AI fallback is also out of credits.)` : aiErr,
+    };
   }
 
   revalidatePath(`/employer/${employerId}`);

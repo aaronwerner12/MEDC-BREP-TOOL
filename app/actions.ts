@@ -4,6 +4,7 @@ import { sql } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { runAllFeeds } from "@/lib/pipeline";
 import { generateEmployerBrief, type BriefSignal } from "@/lib/brief";
+import { generateEmployerBriefRules } from "@/lib/briefRules";
 import { generateCompanyProfile } from "@/lib/profile";
 import { resolveFreeProfile } from "@/lib/companyProfile";
 import { ingestEmployerNews } from "@/lib/newsPipeline";
@@ -309,12 +310,14 @@ export async function fillMissingProfiles(
   return { ok: true, scanned: emps.length, filled, remaining };
 }
 
-// Server action: generate and cache a grounded AI briefing for one employer,
-// synthesized only from that employer's own open signals.
+// Server action: generate and cache a grounded briefing for one employer,
+// synthesized only from that employer's own open signals. Free-first: a
+// deterministic rules briefing always works at no cost; when AI is enabled the
+// nicer AI prose is used, falling back to the rules briefing if the AI call
+// fails (e.g. out of credits) so the button never errors.
 export async function generateBrief(
   employerId: number
-): Promise<{ ok: boolean; error?: string }> {
-  if (!aiEnabled()) return { ok: false, error: aiDisabledReason() };
+): Promise<{ ok: boolean; source?: "free" | "ai"; error?: string }> {
   const emp = (
     (await sql`select id, name, band, sector from employers where id = ${employerId}`) as {
       id: number;
@@ -326,32 +329,58 @@ export async function generateBrief(
   if (!emp) return { ok: false, error: "Employer not found." };
 
   const signals = (await sql`
-    select signal_type, category, summary, tier
+    select signal_type, category, summary, tier, priority,
+           coalesce(event_date, scored_at) as event_date
     from signals
     where employer_id = ${employerId} and handled = false
     order by (tier = 'authoritative') desc, priority desc
     limit 20
-  `) as { signal_type: string; category: string; summary: string; tier: string }[];
+  `) as {
+    signal_type: "risk" | "growth" | "neutral";
+    category: string;
+    summary: string;
+    tier: string;
+    priority: number;
+    event_date: string;
+  }[];
 
-  const briefSignals: BriefSignal[] = signals.map((s) => ({
-    signalType: s.signal_type,
-    category: s.category,
-    summary: s.summary,
-    tier: s.tier,
-  }));
-
-  try {
-    const brief = await generateEmployerBrief({
-      name: emp.name,
-      band: emp.band,
-      sector: emp.sector,
-      signals: briefSignals,
-    });
-    await sql`update employers set brief = ${brief}, brief_at = now() where id = ${employerId}`;
-  } catch (e) {
-    return { ok: false, error: friendlyAiError(e) };
+  // Optional upgrade: AI prose when enabled. Any failure falls through to free.
+  if (aiEnabled()) {
+    try {
+      const briefSignals: BriefSignal[] = signals.map((s) => ({
+        signalType: s.signal_type,
+        category: s.category,
+        summary: s.summary,
+        tier: s.tier,
+      }));
+      const brief = await generateEmployerBrief({
+        name: emp.name,
+        band: emp.band,
+        sector: emp.sector,
+        signals: briefSignals,
+      });
+      await sql`update employers set brief = ${brief}, brief_at = now() where id = ${employerId}`;
+      revalidatePath(`/employer/${employerId}`);
+      return { ok: true, source: "ai" };
+    } catch {
+      // fall through to the free rules briefing
+    }
   }
 
+  // Free path: deterministic rules briefing from the signals on record.
+  const brief = generateEmployerBriefRules({
+    name: emp.name,
+    band: emp.band,
+    signals: signals.map((s) => ({
+      signalType: s.signal_type,
+      category: s.category,
+      summary: s.summary,
+      tier: s.tier,
+      priority: s.priority,
+      date: s.event_date,
+    })),
+  });
+  await sql`update employers set brief = ${brief}, brief_at = now() where id = ${employerId}`;
   revalidatePath(`/employer/${employerId}`);
-  return { ok: true };
+  return { ok: true, source: "free" };
 }

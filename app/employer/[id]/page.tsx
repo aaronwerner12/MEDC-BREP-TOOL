@@ -9,7 +9,6 @@ import {
   riskLevelRead,
   FRESHNESS_MONTHS,
 } from "@/lib/risk";
-import { aiEnabled } from "@/lib/ai";
 import { parseProfile } from "@/lib/profile";
 import { parseBrief } from "@/lib/brief";
 import { BriefButton } from "../../brief-button";
@@ -124,8 +123,6 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
 
   const { employer, signals } = result;
   if (!employer) return <NotFound />;
-
-  const ai = aiEnabled();
 
   const handled = signals.filter((s) => s.handled);
   const openAll = signals.filter((s) => !s.handled);
@@ -292,7 +289,8 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
         )}
       </div>
 
-      {/* AI briefing, grounded in this employer's own signals. */}
+      {/* Briefing, grounded in this employer's own signals. Free rules-based
+          synthesis by default; AI prose as an upgrade when enabled. */}
       <div className="brief card">
         <div className="brief-head">
           <span className="brief-title">Briefing</span>
@@ -300,11 +298,7 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
             {employer.brief_at && (
               <span className="brief-when">Updated {fmtDate(employer.brief_at)}</span>
             )}
-            {ai ? (
-              <BriefButton employerId={employer.id} hasBrief={!!employer.brief} />
-            ) : (
-              <span className="brief-when">AI features are off</span>
-            )}
+            <BriefButton employerId={employer.id} hasBrief={!!employer.brief} />
           </div>
         </div>
         {employer.brief ? (

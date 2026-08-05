@@ -244,6 +244,114 @@ export async function discoverEmployers(): Promise<{
   return { ok: true, added, found: found.size };
 }
 
+// --- BRE workflow: visits and flags -------------------------------------
+
+// Log a business visit (the core BRE activity).
+export async function logVisit(input: {
+  employerId: number;
+  visitedOn?: string;
+  contactName?: string;
+  notes?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  if (!Number.isFinite(input.employerId)) return { ok: false, error: "Bad employer." };
+  const visitedOn = (input.visitedOn ?? "").trim() || null;
+  const contact = (input.contactName ?? "").trim() || null;
+  const notes = (input.notes ?? "").trim() || null;
+  try {
+    await ensureSchema();
+  } catch {
+    // best-effort
+  }
+  try {
+    await sql`
+      insert into visits (employer_id, visited_on, contact_name, notes)
+      values (${input.employerId}, coalesce(${visitedOn}::date, current_date), ${contact}, ${notes})`;
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not log visit." };
+  }
+  revalidatePath(`/employer/${input.employerId}`);
+  revalidatePath("/");
+  return { ok: true };
+}
+
+// Add a red (issue) or green (opportunity) flag with an owner, urgency, and
+// optional follow-up date.
+export async function addFlag(input: {
+  employerId: number;
+  kind: "red" | "green";
+  category?: string;
+  note?: string;
+  urgency?: string;
+  owner?: string;
+  dueDate?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  if (!Number.isFinite(input.employerId)) return { ok: false, error: "Bad employer." };
+  if (input.kind !== "red" && input.kind !== "green") return { ok: false, error: "Bad flag kind." };
+  const category = (input.category ?? "").trim() || null;
+  const note = (input.note ?? "").trim() || null;
+  const urgency = ["urgent", "high", "medium", "low"].includes((input.urgency ?? "").trim())
+    ? (input.urgency ?? "").trim()
+    : null;
+  const owner = (input.owner ?? "").trim() || null;
+  const dueDate = (input.dueDate ?? "").trim() || null;
+  try {
+    await ensureSchema();
+  } catch {
+    // best-effort
+  }
+  try {
+    await sql`
+      insert into flags (employer_id, kind, category, note, urgency, owner, due_date)
+      values (${input.employerId}, ${input.kind}, ${category}, ${note}, ${urgency}, ${owner}, ${dueDate}::date)`;
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not add flag." };
+  }
+  revalidatePath(`/employer/${input.employerId}`);
+  revalidatePath("/followups");
+  revalidatePath("/");
+  return { ok: true };
+}
+
+// Resolve a flag, optionally recording the outcome (impact: jobs retained,
+// issue closed, etc.).
+export async function resolveFlag(input: {
+  flagId: number;
+  employerId?: number;
+  outcome?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  if (!Number.isFinite(input.flagId)) return { ok: false, error: "Bad flag." };
+  const outcome = (input.outcome ?? "").trim() || null;
+  try {
+    await sql`
+      update flags set status = 'resolved', resolved_at = now(),
+        outcome = coalesce(${outcome}, outcome)
+      where id = ${input.flagId}`;
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not resolve." };
+  }
+  if (input.employerId) revalidatePath(`/employer/${input.employerId}`);
+  revalidatePath("/followups");
+  revalidatePath("/");
+  return { ok: true };
+}
+
+// Reopen a resolved flag.
+export async function reopenFlag(input: {
+  flagId: number;
+  employerId?: number;
+}): Promise<{ ok: boolean; error?: string }> {
+  if (!Number.isFinite(input.flagId)) return { ok: false, error: "Bad flag." };
+  try {
+    await sql`update flags set status = 'open', resolved_at = null where id = ${input.flagId}`;
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not reopen." };
+  }
+  if (input.employerId) revalidatePath(`/employer/${input.employerId}`);
+  revalidatePath("/followups");
+  revalidatePath("/");
+  return { ok: true };
+}
+
 // Store a profile string and, if the source found a different official name, set
 // it as the heading while keeping the entered name as a matching alias.
 async function storeProfile(

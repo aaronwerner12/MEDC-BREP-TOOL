@@ -102,6 +102,41 @@ export async function ensureSchema(): Promise<SetupStep[]> {
   await run("create index risk_snapshots_emp_idx", () => sql`
     create index if not exists risk_snapshots_emp_idx on risk_snapshots (employer_id, taken_at desc)`);
 
+  // BRE workflow: business visits and red/green flags with follow-ups.
+  await run("create table visits", () => sql`
+    create table if not exists visits (
+      id           bigserial primary key,
+      employer_id  integer references employers(id),
+      visited_on   date not null default current_date,
+      contact_name text,
+      notes        text,
+      created_at   timestamptz default now()
+    )`);
+
+  await run("create index visits_emp_idx", () => sql`
+    create index if not exists visits_emp_idx on visits (employer_id, visited_on desc)`);
+
+  await run("create table flags", () => sql`
+    create table if not exists flags (
+      id           bigserial primary key,
+      employer_id  integer references employers(id),
+      kind         text not null check (kind in ('red','green')),
+      category     text,
+      note         text,
+      urgency      text check (urgency in ('urgent','high','medium','low')),
+      owner        text,
+      status       text not null default 'open' check (status in ('open','resolved')),
+      due_date     date,
+      outcome      text,
+      created_at   timestamptz default now(),
+      resolved_at  timestamptz
+    )`);
+
+  await run("create index flags_open_idx", () => sql`
+    create index if not exists flags_open_idx on flags (status, due_date)`);
+  await run("create index flags_emp_idx", () => sql`
+    create index if not exists flags_emp_idx on flags (employer_id, status)`);
+
   await run("seed broader McKinney directory", () => sql`
     insert into employers (name, aliases, sector, segment) values
       ('McKinney ISD', array['McKinney Independent School District','MISD'], 'Public education', 'mckinney'),

@@ -11,6 +11,7 @@ import {
 } from "@/lib/risk";
 import { parseProfile } from "@/lib/profile";
 import { parseBrief } from "@/lib/brief";
+import { WorkflowPanel, type VisitRow, type FlagRow } from "../../workflow-panel";
 import { BriefButton } from "../../brief-button";
 import { ProfileButton } from "../../profile-button";
 import { NewsButton } from "../../news-button";
@@ -93,14 +94,14 @@ function trendLabel(t: "up" | "down" | "flat" | "new"): string {
 
 async function readEmployer(
   employerId: number
-): Promise<{ employer?: Employer; signals: Signal[] }> {
+): Promise<{ employer?: Employer; signals: Signal[]; visits: VisitRow[]; flags: FlagRow[] }> {
   const employer = (
     (await sql`
       select id, name, band, sector, aliases, official_name, brief, brief_at, profile, profile_at
       from employers where id = ${employerId}
     `) as Employer[]
   )[0];
-  if (!employer) return { employer: undefined, signals: [] };
+  if (!employer) return { employer: undefined, signals: [], visits: [], flags: [] };
 
   const signals = (await sql`
     select id, signal_type, priority, category, summary, recommended_action,
@@ -111,7 +112,19 @@ async function readEmployer(
     order by handled asc, priority desc, scored_at desc
   `) as Signal[];
 
-  return { employer, signals };
+  const visits = (await sql`
+    select id, visited_on, contact_name, notes
+    from visits where employer_id = ${employerId}
+    order by visited_on desc, id desc
+  `) as VisitRow[];
+
+  const flags = (await sql`
+    select id, kind, category, note, urgency, owner, status, due_date, outcome
+    from flags where employer_id = ${employerId}
+    order by (status = 'open') desc, created_at desc
+  `) as FlagRow[];
+
+  return { employer, signals, visits, flags };
 }
 
 export default async function EmployerPage({ params }: { params: Promise<{ id: string }> }) {
@@ -122,7 +135,7 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
     return <NotFound />;
   }
 
-  let result: { employer?: Employer; signals: Signal[] };
+  let result: { employer?: Employer; signals: Signal[]; visits: VisitRow[]; flags: FlagRow[] };
   try {
     result = await readEmployer(employerId);
   } catch (err) {
@@ -141,7 +154,7 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
     }
   }
 
-  const { employer, signals } = result;
+  const { employer, signals, visits, flags } = result;
   if (!employer) return <NotFound />;
 
   const handled = signals.filter((s) => s.handled);
@@ -262,6 +275,9 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
           </div>
         );
       })()}
+
+      {/* BRE workflow: visits, red/green flags, follow-ups. */}
+      <WorkflowPanel employerId={employer.id} visits={visits} flags={flags} />
 
       {/* Company profile. Free-first: Wikidata firmographics, with an optional
           AI web lookup as fallback when enabled. */}

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const ITEMS = [
   { href: "/", label: "Desk", icon: DeskIcon, match: (p: string) => p === "/" || p.startsWith("/employer") },
   { href: "/businesses", label: "Firms", icon: FirmsIcon, match: (p: string) => p.startsWith("/businesses") },
+  { href: "/followups", label: "Follow-ups", icon: FollowupsIcon, match: (p: string) => p.startsWith("/followups") },
   { href: "/sources", label: "Sources", icon: SourcesIcon, match: (p: string) => p.startsWith("/sources") },
   { href: "/handled", label: "Handled", icon: HandledIcon, match: (p: string) => p.startsWith("/handled") },
 ];
@@ -63,6 +64,14 @@ function FirmsIcon() {
     <svg {...sp}>
       <rect x="4" y="3" width="16" height="18" rx="1" />
       <path d="M9 7h.01M15 7h.01M9 11h.01M15 11h.01M9 15h6" />
+    </svg>
+  );
+}
+function FollowupsIcon() {
+  return (
+    <svg {...sp}>
+      <path d="M9 11l3 3L22 4" />
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
     </svg>
   );
 }

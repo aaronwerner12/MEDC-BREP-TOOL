@@ -59,6 +59,12 @@ interface Kpis {
   outreach: number;
 }
 
+interface Workflow {
+  openFollowups: number;
+  overdueFollowups: number;
+  visitsDue: number;
+}
+
 type DeskData =
   | {
       state: "ok";
@@ -68,6 +74,7 @@ type DeskData =
       scoreByEmployer: Map<number, RiskResult>;
       prevScoreByEmployer: Map<number, number>;
       kpis: Kpis;
+      workflow: Workflow;
     }
   | { state: "unconfigured" }
   | { state: "error"; message: string };
@@ -181,6 +188,29 @@ async function readDesk(): Promise<DeskData> {
       outreach: signals.length,
     };
 
+    // BRE workflow counts: open follow-ups (and overdue), plus notable employers
+    // due for a visit (no visit logged in the last cadence window).
+    const fu = (await sql`
+      select
+        count(*)::int as open,
+        count(*) filter (where due_date is not null and due_date < current_date)::int as overdue
+      from flags where status = 'open'
+    `) as { open: number; overdue: number }[];
+    const vd = (await sql`
+      select count(*)::int as n
+      from employers e
+      where e.active = true and coalesce(e.segment, 'medc') = 'medc'
+        and not exists (
+          select 1 from visits v
+          where v.employer_id = e.id and v.visited_on >= current_date - interval '12 months'
+        )
+    `) as { n: number }[];
+    const workflow: Workflow = {
+      openFollowups: fu[0]?.open ?? 0,
+      overdueFollowups: fu[0]?.overdue ?? 0,
+      visitsDue: vd[0]?.n ?? 0,
+    };
+
     return {
       state: "ok",
       signals,
@@ -189,6 +219,7 @@ async function readDesk(): Promise<DeskData> {
       scoreByEmployer,
       prevScoreByEmployer,
       kpis,
+      workflow,
     };
   }
 }
@@ -241,6 +272,8 @@ export default async function Desk() {
             <Kpi label="Needs outreach" value={data.kpis.outreach} tone="watch" icon={<PulseIcon />} />
           </section>
 
+          <WorkflowStrip w={data.workflow} />
+
           <div className="grid">
             <main>
               <div className="col-head">Action queue · by priority</div>
@@ -287,6 +320,29 @@ function Banner({ kpis, top }: { kpis: Kpis; top: SignalRow | undefined }) {
         </form>
       </div>
     </div>
+  );
+}
+
+function WorkflowStrip({ w }: { w: Workflow }) {
+  const clear = w.openFollowups === 0 && w.visitsDue === 0;
+  return (
+    <Link className={`wf-strip ${w.overdueFollowups > 0 ? "alert" : ""}`} href="/followups">
+      <span className="wf-strip-label">Retention workflow</span>
+      {clear ? (
+        <span className="wf-strip-item">All caught up. No open follow-ups or visits due.</span>
+      ) : (
+        <>
+          <span className="wf-strip-item">
+            <strong>{w.openFollowups}</strong> open follow-up{w.openFollowups === 1 ? "" : "s"}
+            {w.overdueFollowups > 0 && <em className="wf-over"> · {w.overdueFollowups} overdue</em>}
+          </span>
+          <span className="wf-strip-item">
+            <strong>{w.visitsDue}</strong> notable employer{w.visitsDue === 1 ? "" : "s"} due for a visit
+          </span>
+        </>
+      )}
+      <span className="wf-strip-go">Open worksheet →</span>
+    </Link>
   );
 }
 

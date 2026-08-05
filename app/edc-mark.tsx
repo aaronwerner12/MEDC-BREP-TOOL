@@ -1,22 +1,11 @@
-// McKinney EDC brand mark: a Texas outline with a star over North Texas (where
-// McKinney sits), echoing the MEDC logo. Monochrome and inherits currentColor,
-// so it renders in white on the dark rail and in Deep Harbor Teal elsewhere.
+// McKinney EDC brand mark: a clean, standard Texas silhouette. Monochrome,
+// inherits currentColor, so it renders white on the dark rail and Deep Harbor
+// Teal in page headers.
 export function EdcMark({ size = 24 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" aria-hidden="true">
-      {/* Texas silhouette (outline, like the logo). */}
+    <svg width={size} height={size} viewBox="12 6 80 84" fill="none" aria-hidden="true">
       <path
-        d="M28 12 L44 12 L44 24 L72 26 L80 34 L88 42 L84 53 L89 58 L80 67 L69 74 L61 88 L52 73 L40 65 L30 53 L24 47 L20 41 L26 35 L27 24 Z"
-        stroke="currentColor"
-        strokeWidth="6"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-        fill="none"
-      />
-      {/* Star over North Texas. */}
-      <path
-        d="M12 2 L14.7 8.5 L21.6 9.1 L16.3 13.6 L18 20.5 L12 16.8 L6 20.5 L7.7 13.6 L2.4 9.1 L9.3 8.5 Z"
-        transform="translate(47 5) scale(0.95)"
+        d="M18 42 L28 30 L28 12 L46 12 L46 22 L58 23 L66 21 L73 25 L79 29 L81 39 L85 46 L81 53 L74 60 L66 65 L59 71 L56 83 L50 70 L44 64 L39 61 L34 57 L30 54 L26 51 L23 49 Z"
         fill="currentColor"
       />
     </svg>

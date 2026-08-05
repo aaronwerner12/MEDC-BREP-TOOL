@@ -145,7 +145,7 @@ export function BusinessDirectory({ employers }: { employers: DirEmployer[] }) {
               })
             }
           >
-            {discovering ? "Discovering…" : "Discover McKinney employers (web)"}
+            {discovering ? "Discovering…" : "Discover McKinney firms (free)"}
           </button>
           {discoverMsg && <span className="add-biz-msg" style={{ margin: 0 }}>{discoverMsg}</span>}
         </div>

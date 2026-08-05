@@ -9,9 +9,11 @@ import { generateCompanyProfile } from "@/lib/profile";
 import { resolveFreeProfile } from "@/lib/companyProfile";
 import { ingestEmployerNews } from "@/lib/newsPipeline";
 import { discoverMcKinneyEmployers } from "@/lib/discover";
+import { discoverPlacesEmployers } from "@/lib/discoverPlaces";
+import { discoverOsmEmployers } from "@/lib/discoverOsm";
 import { loadEmployers } from "@/lib/employers";
 import { ensureSchema } from "@/lib/setup";
-import { aiEnabled, aiDisabledReason, friendlyAiError } from "@/lib/ai";
+import { aiEnabled, friendlyAiError } from "@/lib/ai";
 
 // Server action: mark a signal handled so it drops out of the open queue.
 export async function markHandled(formData: FormData) {
@@ -176,37 +178,55 @@ export async function scanAllNews(): Promise<{
   return { ok: true, scanned: emps.length, added };
 }
 
-// Server action: web-discover major McKinney employers and add them to the
-// tracked directory (segment 'mckinney'). Flagged as needs-verification.
+// Server action: discover McKinney employers from structured free sources
+// (Google Places categories + OpenStreetMap), plus AI web discovery when
+// enabled, and add the new ones to the directory (segment 'mckinney'). Flagged
+// as needs-verification. Runs free with no key via OpenStreetMap.
 export async function discoverEmployers(): Promise<{
   ok: boolean;
   added?: number;
   found?: number;
   error?: string;
 }> {
-  if (!aiEnabled()) return { ok: false, error: aiDisabledReason() };
   try {
     await ensureSchema();
   } catch {
     // best-effort schema upgrade
   }
 
-  let found;
-  try {
-    found = await discoverMcKinneyEmployers();
-  } catch (e) {
-    return { ok: false, error: friendlyAiError(e) };
+  const found = new Map<string, { name: string; sector: string | null }>();
+  const merge = (list: { name: string; sector: string | null }[]) => {
+    for (const f of list) {
+      const name = (f.name ?? "").trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (!found.has(key)) found.set(key, { name, sector: (f.sector ?? "")?.trim() || null });
+    }
+  };
+
+  // Free structured sources, in parallel. Each returns [] on failure.
+  const [places, osm] = await Promise.all([
+    discoverPlacesEmployers().catch(() => [] as { name: string; sector: string | null }[]),
+    discoverOsmEmployers().catch(() => [] as { name: string; sector: string | null }[]),
+  ]);
+  merge(places);
+  merge(osm);
+
+  // Optional AI web discovery on top.
+  if (aiEnabled()) {
+    try {
+      merge(await discoverMcKinneyEmployers());
+    } catch {
+      // AI failure (e.g. credits) never blocks the free discovery
+    }
   }
 
   let added = 0;
-  for (const f of found) {
-    const name = f.name.trim();
-    if (!name) continue;
-    const sector = (f.sector ?? "").trim() || null;
+  for (const f of found.values()) {
     try {
       const rows = (await sql`
         insert into employers (name, sector, segment, active)
-        values (${name}, ${sector}, 'mckinney', true)
+        values (${f.name}, ${f.sector}, 'mckinney', true)
         on conflict (name) do nothing
         returning id
       `) as { id: number }[];
@@ -218,7 +238,7 @@ export async function discoverEmployers(): Promise<{
 
   revalidatePath("/businesses");
   revalidatePath("/");
-  return { ok: true, added, found: found.length };
+  return { ok: true, added, found: found.size };
 }
 
 // Store a profile string and, if the source found a different official name, set

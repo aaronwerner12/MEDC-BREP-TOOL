@@ -14,7 +14,7 @@ import {
 import { twcWarnSignals } from "../adapters/twcWarn";
 import { secEdgarSignals } from "../adapters/secEdgar";
 import { echoSignals } from "../adapters/echo";
-import { googleNewsSignals } from "../adapters/googleNews";
+import { newsSignals } from "../adapters/newsAll";
 
 interface FeedDef {
   source: string;
@@ -40,7 +40,7 @@ const FEEDS: FeedDef[] = [
   // Free Google News RSS feed. Discrete articles (no replaceUnhandled); deduped
   // by article id via unique(source, external_id). Higher cap since it spans the
   // whole watchlist.
-  { source: "news", run: googleNewsSignals, maxItems: 60 },
+  { source: "news", run: newsSignals, maxItems: 80 },
 ];
 
 // Cap how many items each feed contributes so a single pull stays well within

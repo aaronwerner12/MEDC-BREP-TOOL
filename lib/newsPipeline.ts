@@ -2,7 +2,7 @@ import { sql } from "./db";
 import { scoreSignalRules } from "./rulesScore";
 import { ingestSignal } from "./ingest";
 import { loadEmployers, type EmployerRow } from "./employers";
-import { googleNewsForEmployer } from "../adapters/googleNews";
+import { newsForEmployer } from "../adapters/newsAll";
 import { ensureSchema } from "./setup";
 
 interface EmpLite {
@@ -33,7 +33,7 @@ function toEmployerRow(emp: EmpLite, employers: EmployerRow[]): EmployerRow {
 // as an indicative signal. No API key, no tokens. Returns how many were added.
 export async function ingestEmployerNews(emp: EmpLite, employers: EmployerRow[]): Promise<number> {
   const row = toEmployerRow(emp, employers);
-  const items = await googleNewsForEmployer(row);
+  const items = await newsForEmployer(row);
   let added = 0;
   for (const sig of items) {
     try {

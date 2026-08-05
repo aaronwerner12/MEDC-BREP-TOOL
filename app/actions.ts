@@ -11,6 +11,7 @@ import { ingestEmployerNews } from "@/lib/newsPipeline";
 import { discoverMcKinneyEmployers } from "@/lib/discover";
 import { discoverPlacesEmployers } from "@/lib/discoverPlaces";
 import { discoverOsmEmployers } from "@/lib/discoverOsm";
+import { discoverComptrollerEmployers } from "@/lib/discoverComptroller";
 import { loadEmployers } from "@/lib/employers";
 import { ensureSchema } from "@/lib/setup";
 import { aiEnabled, friendlyAiError } from "@/lib/ai";
@@ -205,12 +206,14 @@ export async function discoverEmployers(): Promise<{
   };
 
   // Free structured sources, in parallel. Each returns [] on failure.
-  const [places, osm] = await Promise.all([
+  const [places, osm, comptroller] = await Promise.all([
     discoverPlacesEmployers().catch(() => [] as { name: string; sector: string | null }[]),
     discoverOsmEmployers().catch(() => [] as { name: string; sector: string | null }[]),
+    discoverComptrollerEmployers().catch(() => [] as { name: string; sector: string | null }[]),
   ]);
   merge(places);
   merge(osm);
+  merge(comptroller);
 
   // Optional AI web discovery on top.
   if (aiEnabled()) {

@@ -22,3 +22,18 @@ export function EdcMark({ size = 24 }: { size?: number }) {
     </svg>
   );
 }
+
+// "McKinney EDC" wordmark lockup, echoing the logo: the mark, the heavy
+// condensed name, and "EDC" flanked by flag bars. Monochrome (currentColor).
+export function EdcWordmark() {
+  return (
+    <div className="edc-wordmark" aria-label="McKinney EDC">
+      <span className="ew-name">McKINNEY</span>
+      <span className="ew-edc">
+        <span className="ew-bars" />
+        EDC
+        <span className="ew-bars" />
+      </span>
+    </div>
+  );
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { EdcMark } from "./edc-mark";
+import { EdcMark, EdcWordmark } from "./edc-mark";
 import { usePathname } from "next/navigation";
 
 const ITEMS = [
@@ -29,6 +29,9 @@ export function Sidebar() {
           </Link>
         );
       })}
+      <div className="rail-brand">
+        <EdcWordmark />
+      </div>
     </nav>
   );
 }

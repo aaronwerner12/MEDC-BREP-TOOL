@@ -47,17 +47,17 @@ export async function GET(req: Request) {
 
   const items = rows
     .map((r) => {
-      const color = r.signal_type === "risk" ? "#C0473B" : "#3FA981";
+      const color = r.signal_type === "risk" ? "#9E4A33" : "#17544F";
       return `
-      <tr><td style="padding:10px 12px 2px;font-weight:600;color:#17324B;">
-        ${r.company}${r.band ? ` <span style="color:#7A93A8;font-weight:400;">· ${r.band}</span>` : ""}
+      <tr><td style="padding:10px 12px 2px;font-weight:600;color:#003242;">
+        ${r.company}${r.band ? ` <span style="color:#647C81;font-weight:400;">· ${r.band}</span>` : ""}
         <span style="float:right;color:${color};text-transform:uppercase;font-size:12px;">${r.signal_type} · ${r.priority}</span>
       </td></tr>
-      <tr><td style="padding:0 12px 12px;color:#17324B;font-size:14px;">
+      <tr><td style="padding:0 12px 12px;color:#003242;font-size:14px;">
         <div>${r.category}: ${r.summary}</div>
-        <div style="color:#2E5A7D;margin-top:4px;">Move: ${r.recommended_action}</div>
-        ${r.tier === "indicative" ? `<div style="color:#7A93A8;font-size:12px;margin-top:2px;">Indicative — confirm before outreach.</div>` : ""}
-        ${r.source_url ? `<a href="${r.source_url}" style="color:#2E5A7D;font-size:12px;">source</a>` : ""}
+        <div style="color:#4C6F72;margin-top:4px;">Move: ${r.recommended_action}</div>
+        ${r.tier === "indicative" ? `<div style="color:#647C81;font-size:12px;margin-top:2px;">Indicative — confirm before outreach.</div>` : ""}
+        ${r.source_url ? `<a href="${r.source_url}" style="color:#4C6F72;font-size:12px;">source</a>` : ""}
       </td></tr>`;
     })
     .join("");
@@ -67,7 +67,7 @@ export async function GET(req: Request) {
     to: process.env.BRE_LEAD_EMAIL!,
     subject: `McKinney Business Retention & Expansion Monitor: ${rows.length} new signal${rows.length > 1 ? "s" : ""}`,
     html: `<div style="font-family:ui-sans-serif,system-ui,sans-serif;max-width:640px;">
-      <h2 style="color:#17324B;">Morning signal digest</h2>
+      <h2 style="color:#003242;">Morning signal digest</h2>
       <table style="width:100%;border-collapse:collapse;">${items}</table>
     </div>`,
   });

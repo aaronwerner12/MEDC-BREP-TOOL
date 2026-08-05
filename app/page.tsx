@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EdcMark } from "./edc-mark";
 import { sql } from "@/lib/db";
 import { ensureSchema } from "@/lib/setup";
 import {
@@ -245,7 +246,7 @@ export default async function Desk() {
     <div className="wrap">
       <header className="head">
         <div className="logo">
-          <ScanIcon />
+          <EdcMark />
         </div>
         <div>
           <h1>McKinney Business Retention &amp; Expansion Monitor</h1>
@@ -620,14 +621,6 @@ function ErrorNotice({ message }: { message: string }) {
 /* Inline icons (no external dependency) ----------------------------------- */
 const sp = { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
-function ScanIcon() {
-  return (
-    <svg {...sp} width={24} height={24}>
-      <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
 function PinIcon() {
   return (
     <svg {...sp}>

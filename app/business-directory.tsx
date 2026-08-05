@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { EdcMark } from "./edc-mark";
 import Link from "next/link";
 import { addBusiness, discoverEmployers, removeBusiness, fillMissingProfiles, scanAllNews } from "./actions";
 
@@ -92,7 +93,7 @@ export function BusinessDirectory({ employers }: { employers: DirEmployer[] }) {
     <div className="wrap">
       <header className="head">
         <div className="logo">
-          <ScanIcon />
+          <EdcMark />
         </div>
         <div>
           <h1>Firms</h1>
@@ -329,20 +330,3 @@ function RemoveBtn({ id, name }: { id: number; name: string }) {
   );
 }
 
-function ScanIcon() {
-  return (
-    <svg
-      width={24}
-      height={24}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}

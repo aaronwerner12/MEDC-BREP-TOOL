@@ -1,25 +1,31 @@
 :root {
-  --bg: #f4f1ea; /* warm cotton */
+  /* MEDC brand palette (uniquemckinney.com). */
+  --bg: #f6f1e9; /* Soft Linen */
   --surface: #ffffff;
-  --navy: #16324a;
-  --denim: #2e5a7d;
-  --muted: #8a99a6;
-  --ink: #2f4459;
-  --line: #e8e3d8;
+  --navy: #003242; /* Deep Harbor Teal — headings, nav, primary dark */
+  --denim: #4c6f72; /* Slate Teal — links, secondary accent */
+  --muted: #647c81; /* muted slate-teal — secondary text */
+  --ink: #22383d; /* dark teal-slate — body text */
+  --line: #e4dccd; /* warm linen border */
 
-  --mint: #3fa981;
-  --mint-bg: #e6f4ee;
-  --mint-ink: #2b7a5c;
-  --brick: #c0473b;
-  --brick-bg: #f7e3e0;
-  --brick-ink: #b03a2e;
-  --sun: #d99413;
-  --sun-bg: #fbf0d8;
-  --sun-ink: #9a6a10;
+  /* Brand accents used for the functional roles. */
+  --mint: #17544f; /* Evergreen Teal — growth */
+  --mint-bg: #e6efec;
+  --mint-ink: #14493f;
+  --brick: #9e4a33; /* Texas Red Dirt — risk */
+  --brick-bg: #f3e4df;
+  --brick-ink: #8a3f2b;
+  --sun: #bb734c; /* Warm Sienna — watch */
+  --sun-bg: #f6e8db;
+  --sun-ink: #93552f;
+
+  /* Supporting brand tints. */
+  --sky: #6da3aa; /* Coastal Blue-Grey */
+  --sky-soft: #a4c1c6; /* Soft Sky Blue */
 
   --radius: 14px;
   --radius-sm: 10px;
-  --shadow: 0 1px 2px rgba(22, 50, 74, 0.05), 0 6px 20px rgba(22, 50, 74, 0.06);
+  --shadow: 0 1px 2px rgba(0, 50, 66, 0.05), 0 6px 20px rgba(0, 50, 66, 0.07);
 }
 
 * {

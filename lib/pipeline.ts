@@ -4,7 +4,13 @@ import { ingestSignal } from "./ingest";
 import { loadEmployers, type EmployerRow } from "./employers";
 import type { NormalizedSignal, ScoredSignal } from "./types";
 import { computeRiskIndex, FRESHNESS_MONTHS, type RiskInput } from "./risk";
-import { usaspendingSignals } from "../adapters/usaspending";
+import {
+  usaspendingSignals,
+  fetchAwardsForEmployer,
+  activeContractTotal,
+  contractDropSignal,
+  DEFENSE_RE,
+} from "../adapters/usaspending";
 import { twcWarnSignals } from "../adapters/twcWarn";
 import { secEdgarSignals } from "../adapters/secEdgar";
 import { echoSignals } from "../adapters/echo";
@@ -109,6 +115,14 @@ export async function runAllFeeds(): Promise<FeedResult[]> {
     }
   }
 
+  // Snapshot each employer's federal contract book and flag material shrinkage
+  // (non-renewal) vs. the last snapshot.
+  try {
+    await snapshotAndDiffContracts(employers);
+  } catch {
+    // Never let contract snapshotting break a pull.
+  }
+
   // Record a risk-index snapshot per employer with open signals, for trends.
   try {
     await snapshotRiskScores();
@@ -117,6 +131,57 @@ export async function runAllFeeds(): Promise<FeedResult[]> {
   }
 
   return results;
+}
+
+// Snapshot the active federal-contract total for employers who either already
+// have a snapshot (i.e. have had contracts) or are in the defense cluster, and
+// emit a risk signal when the book shrinks materially since the last snapshot.
+// Bounded to that set so it does not re-fetch the whole watchlist.
+async function snapshotAndDiffContracts(employers: EmployerRow[]): Promise<void> {
+  let priorRows: { employer_id: number; total_active: number }[] = [];
+  try {
+    priorRows = (await sql`
+      select distinct on (employer_id) employer_id, total_active
+      from contract_snapshots
+      order by employer_id, taken_at desc
+    `) as { employer_id: number; total_active: number }[];
+  } catch {
+    // Table may not exist yet on a fresh DB; the desk's self-heal creates it.
+    return;
+  }
+  const priorMap = new Map(priorRows.map((r) => [r.employer_id, Number(r.total_active)]));
+
+  const targets = employers.filter(
+    (e) =>
+      e.active !== false &&
+      (priorMap.has(e.id) || [e.name, ...(e.aliases ?? [])].some((t) => DEFENSE_RE.test(t)))
+  );
+  if (targets.length === 0) return;
+
+  const CONCURRENCY = 4;
+  let next = 0;
+  async function worker() {
+    while (next < targets.length) {
+      const e = targets[next++];
+      try {
+        const awards = await fetchAwardsForEmployer(e);
+        const curr = activeContractTotal(awards);
+        const recipient =
+          (awards[0] && (awards[0]["Recipient Name"] as string)) || e.name;
+        const prev = priorMap.get(e.id);
+        if (prev != null) {
+          const sig = contractDropSignal(prev, curr, recipient, e.id);
+          if (sig) await ingestSignal(scoreSignalRules(sig, employers));
+        }
+        await sql`
+          insert into contract_snapshots (employer_id, total_active, contract_count)
+          values (${e.id}, ${curr.totalActive}, ${curr.contractCount})`;
+      } catch {
+        // Skip an employer that errors; others continue.
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, targets.length) }, worker));
 }
 
 // Compute each employer's current risk index from their open signals and record

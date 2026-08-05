@@ -196,3 +196,58 @@ export function aggregateAwards(awards: Award[], e: EmployerRow): NormalizedSign
 
   return out;
 }
+
+// --- Snapshot-and-diff: catch a portfolio that shrinks between runs ----------
+
+// Employers whose federal-contract book is worth snapshotting even before they
+// have a prior snapshot (the defense cluster, where this risk concentrates).
+export const DEFENSE_RE = /raytheon|rtx|lockheed|northrop|\bl3\b|l-3|general dynamics|bae|defense/i;
+
+// Fetch an employer's Collin County awards (name + aliases). Exported so the
+// pipeline can snapshot without duplicating term-building.
+export async function fetchAwardsForEmployer(e: EmployerRow): Promise<Award[]> {
+  const terms = Array.from(
+    new Set([e.name, ...(e.aliases ?? [])].map((t) => t.trim()).filter(Boolean))
+  ).slice(0, 5);
+  return fetchAwards(terms);
+}
+
+// Current active-contract total for a set of awards. Pure; offline-testable.
+export function activeContractTotal(awards: Award[]): { totalActive: number; contractCount: number } {
+  const active = awards.filter((a) => daysFromNow(a["End Date"]) > 0);
+  return {
+    totalActive: active.reduce((s, a) => s + (a["Award Amount"] || 0), 0),
+    contractCount: active.length,
+  };
+}
+
+// A material drop between snapshots: at least this much value gone AND at least
+// this share of the prior book, beyond what routine expirations would explain.
+const DROP_ABS = 10_000_000;
+const DROP_SHARE = 0.4;
+
+// Build a risk signal when the active book shrank materially since last check.
+// Pure; returns null when the drop is not material.
+export function contractDropSignal(
+  prevTotal: number,
+  curr: { totalActive: number; contractCount: number },
+  recipient: string,
+  employerId: number
+): NormalizedSignal | null {
+  if (!(prevTotal > 0)) return null;
+  const drop = prevTotal - curr.totalActive;
+  const share = drop / prevTotal;
+  if (drop < DROP_ABS || share < DROP_SHARE) return null;
+  return {
+    source: "usaspending",
+    tier: "authoritative",
+    externalId: `emp${employerId}:contract-drop`,
+    companyName: recipient,
+    sourceUrl: "https://www.usaspending.gov",
+    observedText:
+      `${recipient} active federal contract value in Collin County fell ${Math.round(share * 100)}% ` +
+      `(from ${usdShort(prevTotal)} to ${usdShort(curr.totalActive)}) since the last check. ` +
+      `A drop this large points to non-renewal or wind-down, not routine churn; confirm follow-on status.`,
+    raw: { kind: "contract-drop", prevTotal, currTotal: curr.totalActive, share },
+  };
+}

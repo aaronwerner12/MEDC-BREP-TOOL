@@ -3,9 +3,9 @@
 // Teal in page headers.
 export function EdcMark({ size = 24 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="12 6 80 84" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="16 10 70 78" fill="none" aria-hidden="true">
       <path
-        d="M18 42 L28 30 L28 12 L46 12 L46 22 L58 23 L66 21 L73 25 L79 29 L81 39 L85 46 L81 53 L74 60 L66 65 L59 71 L56 83 L50 70 L44 64 L39 61 L34 57 L30 54 L26 51 L23 49 Z"
+        d="M34 15 L47 15 L47 32 L53 33 L58 31 L63 33 L69 32 L74 34 L78 38 L80 45 L82 52 L76 58 L70 63 L64 68 L59 72 L56 82 L52 73 L47 69 L42 66 L38 63 L35 60 L33 62 L31 58 L26 53 L21 46 L28 42 L31 38 L34 35 Z"
         fill="currentColor"
       />
     </svg>

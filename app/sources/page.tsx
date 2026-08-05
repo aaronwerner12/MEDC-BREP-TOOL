@@ -2,6 +2,8 @@ import Link from "next/link";
 import { BREP_CATEGORIES } from "@/lib/brep";
 import { SOURCES } from "@/lib/sources";
 
+export const metadata = { title: "Sources" };
+
 export const dynamic = "force-static";
 
 // Which BREP categories are covered by at least one LIVE source.

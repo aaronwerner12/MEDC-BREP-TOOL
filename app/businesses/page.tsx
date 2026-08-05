@@ -2,6 +2,8 @@ import { sql } from "@/lib/db";
 import { ensureSchema } from "@/lib/setup";
 import { BusinessDirectory, type DirEmployer, type DirStatus } from "../business-directory";
 
+export const metadata = { title: "Firms" };
+
 export const dynamic = "force-dynamic";
 // Discovery (Google Places + OpenStreetMap) and profile/news batches can take a
 // while, so allow up to 60s for the server actions invoked from this route.

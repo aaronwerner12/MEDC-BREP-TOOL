@@ -2,6 +2,8 @@ import Link from "next/link";
 import { sql } from "@/lib/db";
 import { unhandle } from "../actions";
 
+export const metadata = { title: "Handled" };
+
 export const dynamic = "force-dynamic";
 
 interface Row {

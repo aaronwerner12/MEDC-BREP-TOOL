@@ -12,6 +12,12 @@ import { handleEmployer, pullFeeds } from "./actions";
 import { PullButton } from "./pull-button";
 import { RiskBadge } from "./risk-badge";
 
+// The desk's browser tab title. Overrides the layout default (no template on
+// the home page, so it does not get the "· McKinney Watchtower" suffix twice).
+export const metadata = {
+  title: { absolute: "Notable Employers (Tracked by MEDC) · McKinney Watchtower" },
+};
+
 // Reads live Neon data, so never prerender at build time.
 export const dynamic = "force-dynamic";
 // Feed pulls score each item with Claude, so allow up to 60s.

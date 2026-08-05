@@ -17,6 +17,26 @@ import { NewsButton } from "../../news-button";
 
 export const dynamic = "force-dynamic";
 
+// Browser tab title: the company's name, so open employer tabs are tellable
+// apart. Falls back to a generic title if the lookup fails.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<{ title: string }> {
+  const { id } = await params;
+  const employerId = Number(id);
+  if (!Number.isFinite(employerId)) return { title: "Employer" };
+  try {
+    const rows = (await sql`
+      select coalesce(official_name, name) as name from employers where id = ${employerId}
+    `) as { name: string }[];
+    return { title: rows[0]?.name ?? "Employer" };
+  } catch {
+    return { title: "Employer" };
+  }
+}
+
 type SigType = "risk" | "growth" | "neutral";
 
 interface Employer {

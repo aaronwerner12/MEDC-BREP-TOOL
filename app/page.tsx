@@ -229,7 +229,7 @@ export default async function Desk() {
           <Banner kpis={data.kpis} top={data.signals[0]} />
 
           <section className="kpis">
-            <Kpi label="Employers watched" value={data.kpis.employers} icon={<BuildingIcon />} />
+            <Kpi label="Notable employers" value={data.kpis.employers} icon={<BuildingIcon />} />
             <Kpi label="Active risks" value={data.kpis.risks} tone="risk" icon={<AlertIcon />} />
             <Kpi label="Growth signals" value={data.kpis.growth} tone="growth" icon={<TrendIcon />} />
             <Kpi label="Needs outreach" value={data.kpis.outreach} tone="watch" icon={<PulseIcon />} />
@@ -243,7 +243,7 @@ export default async function Desk() {
             </main>
 
             <aside>
-              <div className="col-head">Watchlist · by risk index</div>
+              <div className="col-head">Notable Employers (Tracked by MEDC)</div>
               <Watchlist
                 employers={data.employers}
                 statusByEmployer={data.statusByEmployer}
@@ -263,7 +263,7 @@ function Banner({ kpis, top }: { kpis: Kpis; top: SignalRow | undefined }) {
     kpis.risks > 0 && top
       ? `${top.company} is your top priority right now (${top.category}).`
       : kpis.outreach > 0
-      ? `${kpis.outreach} open signal${kpis.outreach === 1 ? "" : "s"} to review across the watchlist.`
+      ? `${kpis.outreach} open signal${kpis.outreach === 1 ? "" : "s"} to review across notable employers.`
       : "The desk is clear. No open signals right now.";
 
   return (
@@ -454,7 +454,7 @@ function Watchlist({
   prevScoreByEmployer: Map<number, number>;
 }) {
   if (employers.length === 0) {
-    return <div className="empty">Watchlist is empty. Run the seed migrations.</div>;
+    return <div className="empty">No notable employers yet. Run the seed migrations.</div>;
   }
 
   const bands = [...new Set(employers.map((e) => e.band ?? "Other"))].sort(

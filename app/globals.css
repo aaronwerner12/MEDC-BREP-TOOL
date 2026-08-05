@@ -930,6 +930,61 @@ a {
 .biz-search {
   margin-bottom: 4px;
 }
+.dir-summary {
+  margin: 14px 0 2px;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+.dir-summary strong {
+  color: var(--ink);
+}
+.biz-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.biz-controls .paste-input {
+  flex: 1;
+  min-width: 200px;
+}
+.seg-toggle {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.seg-toggle .seg {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-right: 1px solid var(--line);
+}
+.seg-toggle .seg:last-child {
+  border-right: 0;
+}
+.seg-toggle .seg.on {
+  background: var(--navy);
+  color: #fff;
+  font-weight: 600;
+}
+.chip.medc {
+  margin-left: 7px;
+  background: var(--navy);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 5px;
+  vertical-align: middle;
+}
 .biz-list .emp .chip.band {
   margin-left: auto;
 }

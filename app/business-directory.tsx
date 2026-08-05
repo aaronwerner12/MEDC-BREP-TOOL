@@ -15,12 +15,25 @@ export interface DirEmployer {
   status: DirStatus;
 }
 
+// MEDC size bands, largest first; anything else falls into "Size not listed".
+const BAND_ORDER = ["1,000+", "500+", "250+", "100+", "50+"];
+function bandRank(b: string | null): number {
+  const i = BAND_ORDER.indexOf(b ?? "");
+  return i === -1 ? BAND_ORDER.length : i;
+}
+function bandLabel(b: string | null): string {
+  return b && BAND_ORDER.includes(b) ? `${b} employees` : "Size not listed";
+}
+
 function statusLabel(s: DirStatus) {
   return s === "risk" ? "At risk" : s === "growth" ? "Growing" : s === "watch" ? "Watch" : "No signals";
 }
 
+type View = "all" | "medc" | "mckinney";
+
 export function BusinessDirectory({ employers }: { employers: DirEmployer[] }) {
   const [q, setQ] = useState("");
+  const [view, setView] = useState<View>("all");
   const [name, setName] = useState("");
   const [sector, setSector] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -28,17 +41,36 @@ export function BusinessDirectory({ employers }: { employers: DirEmployer[] }) {
   const [discoverMsg, setDiscoverMsg] = useState<string | null>(null);
   const [discovering, startDiscover] = useTransition();
 
+  const medcCount = useMemo(() => employers.filter((e) => e.segment === "medc").length, [employers]);
+  const mckCount = employers.length - medcCount;
+
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return employers;
-    return employers.filter(
-      (e) =>
-        e.name.toLowerCase().includes(needle) || (e.sector ?? "").toLowerCase().includes(needle)
-    );
-  }, [q, employers]);
+    return employers.filter((e) => {
+      if (view === "medc" && e.segment !== "medc") return false;
+      if (view === "mckinney" && e.segment !== "mckinney") return false;
+      if (!needle) return true;
+      return e.name.toLowerCase().includes(needle) || (e.sector ?? "").toLowerCase().includes(needle);
+    });
+  }, [q, view, employers]);
 
-  const medc = filtered.filter((e) => e.segment === "medc");
-  const mck = filtered.filter((e) => e.segment === "mckinney");
+  // Group the filtered firms by size band, largest first.
+  const groups = useMemo(() => {
+    const byBand = new Map<string, DirEmployer[]>();
+    for (const e of filtered) {
+      const key = e.band && BAND_ORDER.includes(e.band) ? e.band : "__other__";
+      const arr = byBand.get(key);
+      if (arr) arr.push(e);
+      else byBand.set(key, [e]);
+    }
+    const keys = [...byBand.keys()].sort(
+      (a, b) => bandRank(a === "__other__" ? null : a) - bandRank(b === "__other__" ? null : b)
+    );
+    return keys.map((k) => ({
+      band: k === "__other__" ? null : k,
+      rows: byBand.get(k)!.sort((a, b) => a.name.localeCompare(b.name)),
+    }));
+  }, [filtered]);
 
   function submitAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -63,14 +95,19 @@ export function BusinessDirectory({ employers }: { employers: DirEmployer[] }) {
           <ScanIcon />
         </div>
         <div>
-          <h1>Businesses</h1>
-          <div className="tag">Every McKinney business the desk is tracking</div>
+          <h1>Firms</h1>
+          <div className="tag">Every substantial McKinney business the desk tracks</div>
         </div>
         <div className="spacer" />
         <Link className="navlink" href="/">
           ← Desk
         </Link>
       </header>
+
+      <div className="dir-summary">
+        Tracking <strong>{employers.length}</strong> firm{employers.length === 1 ? "" : "s"} ·{" "}
+        <strong>{medcCount}</strong> notable (MEDC) · <strong>{mckCount}</strong> broader directory
+      </div>
 
       <form className="add-biz card" onSubmit={submitAdd}>
         <div className="add-biz-row">
@@ -120,18 +157,71 @@ export function BusinessDirectory({ employers }: { employers: DirEmployer[] }) {
         </div>
       </form>
 
-      <div className="biz-search">
+      <div className="biz-controls">
         <input
           className="paste-input"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder={`Search ${employers.length} tracked businesses…`}
+          placeholder={`Search ${employers.length} tracked firms…`}
         />
+        <div className="seg-toggle">
+          <button className={view === "all" ? "seg on" : "seg"} type="button" onClick={() => setView("all")}>
+            All ({employers.length})
+          </button>
+          <button className={view === "medc" ? "seg on" : "seg"} type="button" onClick={() => setView("medc")}>
+            Notable ({medcCount})
+          </button>
+          <button
+            className={view === "mckinney" ? "seg on" : "seg"}
+            type="button"
+            onClick={() => setView("mckinney")}
+          >
+            Directory ({mckCount})
+          </button>
+        </div>
       </div>
 
-      <DirGroup title="MEDC watchlist" subtitle="Top notable employers" rows={medc} />
-      <DirGroup title="McKinney directory" subtitle="Broader tracked businesses" rows={mck} />
+      {filtered.length === 0 ? (
+        <div className="empty">No firms match.</div>
+      ) : (
+        groups.map((g) => (
+          <BandGroup key={g.band ?? "other"} band={g.band} rows={g.rows} />
+        ))
+      )}
     </div>
+  );
+}
+
+function BandGroup({ band, rows }: { band: string | null; rows: DirEmployer[] }) {
+  return (
+    <>
+      <div className="col-head" style={{ marginTop: 22 }}>
+        {bandLabel(band)}
+        <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
+          {" "}
+          · {rows.length} firm{rows.length === 1 ? "" : "s"}
+        </span>
+      </div>
+      <div className="card biz-list">
+        {rows.map((e) => (
+          <div className="emp dir-row" key={e.id}>
+            <Link className="dir-main" href={`/employer/${e.id}`}>
+              <span className={`dot ${e.status}`} />
+              <div className="info">
+                <div className="name">
+                  {e.name}
+                  {e.segment === "medc" && <span className="chip medc">MEDC</span>}
+                </div>
+                {e.sector && <div className="sector">{e.sector}</div>}
+              </div>
+              {e.band && <span className="chip band">{e.band}</span>}
+              <span className={`status ${e.status}`}>{statusLabel(e.status)}</span>
+            </Link>
+            <RemoveBtn id={e.id} name={e.name} />
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -147,10 +237,6 @@ function FillProfilesButton() {
     setMsg("Filling profiles from free sources…");
     let totalFilled = 0;
     try {
-      // Loop until no batch makes progress. Each call handles up to 15.
-      // Stop when nothing remains, nothing was scanned, or a batch filled none
-      // (the rest have no free public record).
-      // A hard round cap guards against any unexpected non-convergence.
       for (let round = 0; round < 20; round++) {
         const r = await fillMissingProfiles();
         if (!r.ok) {
@@ -218,37 +304,6 @@ function ScanAllNewsButton() {
         {running ? "Scanning news…" : "Scan news for all (free)"}
       </button>
       {msg && <span className="add-biz-msg" style={{ margin: 0 }}>{msg}</span>}
-    </>
-  );
-}
-
-function DirGroup({ title, subtitle, rows }: { title: string; subtitle: string; rows: DirEmployer[] }) {
-  return (
-    <>
-      <div className="col-head" style={{ marginTop: 24 }}>
-        {title} · {rows.length}
-        <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}> — {subtitle}</span>
-      </div>
-      {rows.length === 0 ? (
-        <div className="empty">Nothing here yet.</div>
-      ) : (
-        <div className="card biz-list">
-          {rows.map((e) => (
-            <div className="emp dir-row" key={e.id}>
-              <Link className="dir-main" href={`/employer/${e.id}`}>
-                <span className={`dot ${e.status}`} />
-                <div className="info">
-                  <div className="name">{e.name}</div>
-                  {e.sector && <div className="sector">{e.sector}</div>}
-                </div>
-                {e.band && <span className="chip band">{e.band}</span>}
-                <span className={`status ${e.status}`}>{statusLabel(e.status)}</span>
-              </Link>
-              <RemoveBtn id={e.id} name={e.name} />
-            </div>
-          ))}
-        </div>
-      )}
     </>
   );
 }

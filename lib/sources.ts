@@ -18,7 +18,7 @@ export const SOURCES: SourceDef[] = [
     cadence: "Daily",
     covers: ["Revenue / Financial Health", "Expansion Plans", "Employment"],
     detail:
-      "Collin County contract awards for the defense cluster (Raytheon/RTX). Rolled up to portfolio-level expiry concentration and new large awards, not per contract.",
+      "Collin County contract awards for every watchlist employer, rolled up to portfolio level: expiry concentration, new large awards, and a snapshot-and-diff that flags a book shrinking materially between runs (non-renewal). Keyless.",
   },
   {
     name: "Texas WARN (TWC)",
@@ -27,32 +27,51 @@ export const SOURCES: SourceDef[] = [
     cadence: "Daily",
     covers: ["Employment"],
     detail:
-      "State layoff and closure notices from the Texas Open Data Portal, filtered to McKinney / Collin County or a watchlist employer.",
+      "State layoff and closure notices from the Texas Open Data Portal, filtered to McKinney / Collin County or a watchlist employer. Keyless.",
   },
   {
     name: "SEC EDGAR",
     status: "live",
     tier: "authoritative",
     cadence: "Daily",
-    covers: ["Revenue / Financial Health", "Ownership / M&A", "Leadership Stability"],
+    covers: ["Revenue / Financial Health", "Ownership / M&A", "Leadership Stability", "Employment"],
     detail:
-      "Recent 8-K / 10-K / 10-Q filings for public watchlist employers (Globe Life, Independent Financial / SouthState, and others).",
+      "Recent 8-K / 10-K / 10-Q filings for every public watchlist employer, resolved automatically from SEC's own ticker map. 8-K item codes classify the event (exit/disposal, change of control, impairment, leadership). Keyless.",
   },
   {
-    name: "Web news scan",
+    name: "News (Google News + GDELT)",
     status: "live",
     tier: "indicative",
-    cadence: "On demand",
+    cadence: "Daily + on demand",
     covers: [
       "Employment",
       "Ownership / M&A",
       "Leadership Stability",
       "Revenue / Financial Health",
       "Expansion Plans",
+      "Real Estate",
       "Legal / Litigation",
     ],
     detail:
-      "Per-company web search (via Claude) for recent significant news: layoffs, expansions, M&A, leadership, results, legal/regulatory. Cited sources; confirm before outreach.",
+      "Two keyless news indexes (Google News RSS + GDELT), merged and de-duplicated by headline. Filtered to material retention/expansion themes only. Free, no tokens. Indicative: confirm before outreach.",
+  },
+  {
+    name: "EPA / OSHA ECHO",
+    status: "live",
+    tier: "authoritative",
+    cadence: "Daily",
+    covers: ["Environmental / Safety", "Regulatory Issues"],
+    detail:
+      "Facility compliance and enforcement status for McKinney watchlist employers from EPA/OSHA ECHO; a current violation flag becomes a watch signal. Keyless.",
+  },
+  {
+    name: "Firm discovery & company profiles",
+    status: "live",
+    tier: "indicative",
+    cadence: "On demand + daily",
+    covers: [],
+    detail:
+      "Builds and enriches the directory from free sources: discovery via Google Places, OpenStreetMap, and the Texas Comptroller registry; profiles via Wikidata, OpenCorporates, Google, and the company website. Not a signal feed; review before use.",
   },
   {
     name: "CoStar (lease alerts)",
@@ -75,16 +94,8 @@ export const SOURCES: SourceDef[] = [
       "Infrastructure Needs",
       "Regulatory Issues",
     ],
-    detail: "Building permits geofenced to watchlist addresses; new construction vs. demolition/decommission.",
-  },
-  {
-    name: "EPA / OSHA ECHO",
-    status: "live",
-    tier: "authoritative",
-    cadence: "Daily",
-    covers: ["Environmental / Safety", "Regulatory Issues"],
     detail:
-      "Facility compliance and enforcement status for McKinney watchlist employers from EPA/OSHA ECHO; a current violation flag becomes a risk signal.",
+      "Building permits geofenced to watchlist addresses. McKinney's permit portal is login-gated with no open API, so this needs a data-share with Development Services rather than a public feed.",
   },
   {
     name: "County court / PACER",

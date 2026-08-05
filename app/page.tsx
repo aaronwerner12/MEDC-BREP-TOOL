@@ -13,7 +13,7 @@ import { PullButton } from "./pull-button";
 import { RiskBadge } from "./risk-badge";
 
 // The desk uses the layout's default title, so its tab reads
-// "McKinney Business Retention Monitor" with no suffix.
+// "McKinney Business Retention & Expansion Monitor" with no suffix.
 
 // Reads live Neon data, so never prerender at build time.
 export const dynamic = "force-dynamic";
@@ -248,7 +248,7 @@ export default async function Desk() {
           <ScanIcon />
         </div>
         <div>
-          <h1>McKinney Business Retention Monitor</h1>
+          <h1>McKinney Business Retention &amp; Expansion Monitor</h1>
           <div className="tag">
             Early warning, visits, and follow-up for local employers
           </div>

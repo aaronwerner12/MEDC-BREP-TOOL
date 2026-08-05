@@ -12,7 +12,7 @@ import type { CompanyProfile } from "./profile";
 
 const WD_API = "https://www.wikidata.org/w/api.php";
 const WD_SPARQL = "https://query.wikidata.org/sparql";
-const UA = "McKinney Business Retention Monitor/1.0 (awerner@visitmckinney.com)";
+const UA = "McKinney Business Retention and Expansion Monitor/1.0 (awerner@visitmckinney.com)";
 
 interface SearchHit {
   id: string;

@@ -4,8 +4,8 @@ import { Sidebar } from "./sidebar";
 
 export const metadata: Metadata = {
   title: {
-    default: "McKinney Business Retention Monitor",
-    template: "%s · McKinney Business Retention Monitor",
+    default: "McKinney Business Retention & Expansion Monitor",
+    template: "%s · McKinney Business Retention & Expansion Monitor",
   },
   description:
     "Business retention and expansion early-warning system for the City of McKinney economic development team.",

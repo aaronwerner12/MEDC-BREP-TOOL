@@ -15,7 +15,7 @@ import { RiskBadge } from "./risk-badge";
 // The desk's browser tab title. Overrides the layout default (no template on
 // the home page, so it does not get the "· McKinney Watchtower" suffix twice).
 export const metadata = {
-  title: { absolute: "Notable Employers (Tracked by MEDC) · McKinney Watchtower" },
+  title: { absolute: "McKinney Business Retention Monitor" },
 };
 
 // Reads live Neon data, so never prerender at build time.

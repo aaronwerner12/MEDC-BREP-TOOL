@@ -1,6 +1,7 @@
 import type { CompanyProfile } from "./profile";
 import { fetchWikidataProfile } from "./wikidata";
 import { fetchOpenCorporates } from "./opencorporates";
+import { fetchGooglePlaces } from "./googlePlaces";
 import { fetchGoogleKg } from "./googleKg";
 import { fetchSiteDescription } from "./companySite";
 
@@ -54,19 +55,25 @@ export async function resolveFreeProfile(input: {
     // skip
   }
 
-  // 3. Google Knowledge Graph (free key; skipped without GOOGLE_KG_API_KEY).
-  let website: string | undefined;
+  // 3. Google Places / Maps (skipped without a Places-enabled key). Best for
+  //    small local businesses: address, website, category, editorial summary.
   try {
-    const kg = await fetchGoogleKg(input.name);
-    if (kg) {
-      sources.push({ name: "Google", data: kg });
-      website = kg.website;
-    }
+    const gp = await fetchGooglePlaces(input.name);
+    if (gp) sources.push({ name: "Google Places", data: gp });
   } catch {
     // skip
   }
 
-  // 4. The company's own website (keyless), only when a source gave us a URL.
+  // 4. Google Knowledge Graph (free key; skipped without GOOGLE_KG_API_KEY).
+  try {
+    const kg = await fetchGoogleKg(input.name);
+    if (kg) sources.push({ name: "Google", data: kg });
+  } catch {
+    // skip
+  }
+
+  // 5. The company's own website (keyless), when any source gave us a URL.
+  const website = sources.map((s) => s.data.website).find((w) => real(w));
   if (real(website)) {
     try {
       const site = await fetchSiteDescription(website);

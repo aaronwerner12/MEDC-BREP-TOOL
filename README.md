@@ -46,8 +46,8 @@ Anthropic Console if you do use it, so it can never overspend.
 ### Optional free profile keys (for small private firms)
 
 Company profiles resolve free-first through a chain: **Wikidata → OpenCorporates
-→ Google Knowledge Graph → the company website → (AI, only if enabled)**. Fields
-merge from all sources; anything unknown is dropped.
+→ Google Places → Google Knowledge Graph → the company website → (AI, only if
+enabled)**. Fields merge from all sources; anything unknown is dropped.
 
 Wikidata (no key) covers the larger employers well. Small **private** firms are
 not in Wikidata, so to resolve them for free, set these two free keys in Vercel
@@ -60,6 +60,13 @@ its key is blank, so the chain always runs.
 - `GOOGLE_KG_API_KEY` — short description and official website. A standard free
   Google Cloud API key with the Knowledge Graph Search API enabled:
   https://console.cloud.google.com/apis/library/kgsearch.googleapis.com
+- `GOOGLE_PLACES_API_KEY` — address, website, category, and summary from a firm's
+  Google/Maps listing. The best source for small **local** businesses (a
+  restaurant, shop, or clinic that is in no registry or encyclopedia). Enable the
+  Places API on the Cloud project; billing must be on, but Google's monthly free
+  credit covers typical use. One Cloud key can serve both Google APIs, in which
+  case you can leave this blank and it reuses `GOOGLE_KG_API_KEY`.
+  https://console.cloud.google.com/apis/library/places-backend.googleapis.com
 
 Note: employee counts for very small private firms are not in any free
 structured source, so that field may stay "unknown" even with both keys set.

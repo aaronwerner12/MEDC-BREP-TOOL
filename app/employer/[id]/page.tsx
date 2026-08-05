@@ -440,14 +440,14 @@ export default async function EmployerPage({ params }: { params: Promise<{ id: s
 // no key; OpenCorporates and Google need a free key each.
 function ProfileSources() {
   const oc = !!process.env.OPENCORPORATES_API_TOKEN;
-  const kg = !!process.env.GOOGLE_KG_API_KEY;
+  const google = !!(process.env.GOOGLE_KG_API_KEY || process.env.GOOGLE_PLACES_API_KEY);
   const items: { name: string; on: boolean }[] = [
     { name: "Wikidata", on: true },
     { name: "OpenCorporates", on: oc },
-    { name: "Google", on: kg },
+    { name: "Google", on: google },
     { name: "Website", on: true },
   ];
-  const missing = [!oc && "OpenCorporates", !kg && "Google"].filter(Boolean) as string[];
+  const missing = [!oc && "OpenCorporates", !google && "Google"].filter(Boolean) as string[];
   return (
     <p className="profile-sources">
       <span className="ps-label">Free sources:</span>{" "}

@@ -7,7 +7,7 @@ import type { PartialProfile } from "./companyProfile";
 // Requires a free API token (OPENCORPORATES_API_TOKEN). Without it the source is
 // skipped, so the profile chain still runs on the other sources.
 const BASE = "https://api.opencorporates.com/v0.4";
-const UA = "McKinney Watchtower/1.0 (awerner@visitmckinney.com)";
+const UA = "McKinney Business Retention Monitor/1.0 (awerner@visitmckinney.com)";
 // Bias the search to Texas, where the McKinney private firms are registered.
 const JURISDICTION = "us_tx";
 

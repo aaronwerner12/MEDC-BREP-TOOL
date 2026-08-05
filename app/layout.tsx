@@ -4,8 +4,8 @@ import { Sidebar } from "./sidebar";
 
 export const metadata: Metadata = {
   title: {
-    default: "McKinney Watchtower",
-    template: "%s · McKinney Watchtower",
+    default: "McKinney Business Retention Monitor",
+    template: "%s · McKinney Business Retention Monitor",
   },
   description:
     "Business retention and expansion early-warning system for the City of McKinney economic development team.",

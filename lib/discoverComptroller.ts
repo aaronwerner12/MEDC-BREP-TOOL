@@ -91,7 +91,7 @@ export function mapComptroller(rows: Row[]): { name: string; sector: string | nu
 
 async function fetchRows(): Promise<Row[]> {
   const headers: Record<string, string> = {
-    "User-Agent": "McKinney Watchtower/1.0 (awerner@visitmckinney.com)",
+    "User-Agent": "McKinney Business Retention Monitor/1.0 (awerner@visitmckinney.com)",
     Accept: "application/json",
   };
   const token = process.env.SOCRATA_APP_TOKEN;

@@ -63,9 +63,9 @@ export async function GET(req: Request) {
     .join("");
 
   await resend().emails.send({
-    from: "McKinney Watchtower <signal-desk@your-domain.org>",
+    from: "McKinney Business Retention Monitor <signal-desk@your-domain.org>",
     to: process.env.BRE_LEAD_EMAIL!,
-    subject: `McKinney Watchtower: ${rows.length} new signal${rows.length > 1 ? "s" : ""}`,
+    subject: `McKinney Business Retention Monitor: ${rows.length} new signal${rows.length > 1 ? "s" : ""}`,
     html: `<div style="font-family:ui-sans-serif,system-ui,sans-serif;max-width:640px;">
       <h2 style="color:#17324B;">Morning signal digest</h2>
       <table style="width:100%;border-collapse:collapse;">${items}</table>

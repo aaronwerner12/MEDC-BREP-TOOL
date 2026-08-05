@@ -15,7 +15,7 @@ export function Sidebar() {
   const pathname = usePathname() || "/";
   return (
     <nav className="rail">
-      <div className="rail-logo" title="McKinney Watchtower">
+      <div className="rail-logo" title="McKinney Business Retention Monitor">
         <ScanIcon />
       </div>
       {ITEMS.map((it) => {

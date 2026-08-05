@@ -12,11 +12,8 @@ import { handleEmployer, pullFeeds } from "./actions";
 import { PullButton } from "./pull-button";
 import { RiskBadge } from "./risk-badge";
 
-// The desk's browser tab title. Overrides the layout default (no template on
-// the home page, so it does not get the "· McKinney Watchtower" suffix twice).
-export const metadata = {
-  title: { absolute: "McKinney Business Retention Monitor" },
-};
+// The desk uses the layout's default title, so its tab reads
+// "McKinney Business Retention Monitor" with no suffix.
 
 // Reads live Neon data, so never prerender at build time.
 export const dynamic = "force-dynamic";
@@ -251,9 +248,9 @@ export default async function Desk() {
           <ScanIcon />
         </div>
         <div>
-          <h1>McKinney Watchtower</h1>
+          <h1>McKinney Business Retention Monitor</h1>
           <div className="tag">
-            Business Retention and Expansion Monitor
+            Early warning, visits, and follow-up for local employers
           </div>
         </div>
       </header>

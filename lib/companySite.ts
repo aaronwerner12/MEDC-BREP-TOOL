@@ -5,7 +5,7 @@ import type { PartialProfile } from "./companyProfile";
 // "what they do" line (employees/executives are not reliably on a homepage
 // without an LLM). Only called when an earlier source supplied a URL.
 const UA =
-  "Mozilla/5.0 (compatible; McKinneyWatchtower/1.0; +https://visitmckinney.com)";
+  "Mozilla/5.0 (compatible; McKinneyBRE/1.0; +https://visitmckinney.com)";
 const TIMEOUT_MS = 6000;
 const MAX_BYTES = 200_000;
 

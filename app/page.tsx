@@ -430,15 +430,15 @@ function groupSignals(signals: SignalRow[]): QueueGroup[] {
   return groups;
 }
 
-// The top few open items right now, ranked by severity + recency, so a fresh
-// risk or a new material headline surfaces at the top. One row per company.
+// The top few open items right now as scannable card blocks, ranked by severity
+// + recency so a fresh risk or a new material headline surfaces first. One card
+// per company.
 function TopWatch({ signals }: { signals: SignalRow[] }) {
   const top = groupSignals(signals).slice(0, 5);
-  const labelFor = (s: SigType) =>
-    s === "risk" ? "Risk" : s === "growth" ? "Growth" : "Watch";
+  const labelFor = (s: SigType) => (s === "risk" ? "Risk" : s === "growth" ? "Growth" : "Watch");
 
   return (
-    <section className="topwatch card">
+    <section className="topwatch">
       <div className="tw-head">
         Top priorities to watch
         <span className="tw-sub">
@@ -446,37 +446,40 @@ function TopWatch({ signals }: { signals: SignalRow[] }) {
         </span>
       </div>
       {top.length === 0 ? (
-        <div className="empty">The desk is clear. No open signals to watch.</div>
+        <div className="card empty" style={{ marginTop: 8 }}>
+          The desk is clear. No open signals to watch.
+        </div>
       ) : (
-        top.map((g, i) => {
-          const inner = (
-            <>
-              <span className="tw-rank">{i + 1}</span>
-              <span className={`sdot ${g.status}`} />
-              <div className="tw-main">
-                <div className="tw-top">
-                  <span className="tw-company">{g.company}</span>
-                  <span className={`badge ${g.status === "neutral" ? "watch" : g.status}`}>
-                    {labelFor(g.status)}
-                  </span>
-                  {g.count > 1 && <span className="reasons-chip">{g.count} reasons</span>}
-                  {g.categories[0] && <span className="tw-cat">{g.categories[0]}</span>}
+        <div className="tw-grid">
+          {top.map((g, i) => {
+            const badge = g.status === "neutral" ? "watch" : g.status;
+            const inner = (
+              <>
+                <div className="twc-top">
+                  <span className="twc-rank">{i + 1}</span>
+                  <span className={`badge ${badge}`}>{labelFor(g.status)}</span>
+                  {g.topDateIso && <span className="twc-date">{fmtDate(g.topDateIso)}</span>}
                 </div>
-                <div className="tw-reason">{g.topSummary}</div>
+                <div className="twc-company">{g.company}</div>
+                {g.categories[0] && <div className="twc-cat">{g.categories[0]}</div>}
+                <div className="twc-reason">{g.topSummary}</div>
+                <div className="twc-foot">
+                  {g.count > 1 ? `${g.count} open signals` : "1 open signal"}
+                  {g.employerId != null && <span className="twc-go">View →</span>}
+                </div>
+              </>
+            );
+            return g.employerId != null ? (
+              <Link className={`twc ${g.status}`} key={g.key} href={`/employer/${g.employerId}`}>
+                {inner}
+              </Link>
+            ) : (
+              <div className={`twc ${g.status}`} key={g.key}>
+                {inner}
               </div>
-              {g.topDateIso && <span className="tw-date">{fmtDate(g.topDateIso)}</span>}
-            </>
-          );
-          return g.employerId != null ? (
-            <Link className={`tw-row ${g.status}`} key={g.key} href={`/employer/${g.employerId}`}>
-              {inner}
-            </Link>
-          ) : (
-            <div className={`tw-row ${g.status}`} key={g.key}>
-              {inner}
-            </div>
-          );
-        })
+            );
+          })}
+        </div>
       )}
     </section>
   );

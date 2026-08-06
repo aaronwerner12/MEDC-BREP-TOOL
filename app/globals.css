@@ -552,20 +552,19 @@ a {
   justify-content: flex-end;
 }
 
-/* --- Top priorities to watch ------------------------------------------- */
-.topwatch.card {
+/* --- Top priorities to watch (card blocks) ----------------------------- */
+.topwatch {
   margin-top: 16px;
-  padding: 6px 4px 4px;
 }
 .tw-head {
   display: flex;
   align-items: baseline;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 8px 14px 6px;
+  margin-bottom: 10px;
   font-family: "Josefin Sans", sans-serif;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 16px;
   color: var(--navy);
 }
 .tw-sub {
@@ -574,29 +573,44 @@ a {
   font-size: 12.5px;
   color: var(--muted);
 }
-.tw-row {
-  display: flex;
-  align-items: center;
+.tw-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 12px;
-  padding: 11px 14px;
-  border-top: 1px solid var(--line);
+}
+.twc {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--muted);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
   text-decoration: none;
   color: inherit;
-  box-shadow: inset 3px 0 0 transparent;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
 }
-.tw-row.risk {
-  box-shadow: inset 3px 0 0 var(--brick);
+.twc.risk {
+  border-top-color: var(--brick);
 }
-.tw-row.growth {
-  box-shadow: inset 3px 0 0 var(--mint);
+.twc.growth {
+  border-top-color: var(--mint);
 }
-.tw-row.neutral {
-  box-shadow: inset 3px 0 0 var(--sun);
+.twc.neutral {
+  border-top-color: var(--sun);
 }
-a.tw-row:hover {
-  background: var(--bg);
+a.twc:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 50, 66, 0.06), 0 10px 24px rgba(0, 50, 66, 0.1);
 }
-.tw-rank {
+.twc-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.twc-rank {
   flex: none;
   width: 22px;
   height: 22px;
@@ -609,44 +623,48 @@ a.tw-row:hover {
   align-items: center;
   justify-content: center;
 }
-.tw-main {
-  flex: 1;
-  min-width: 0;
+.twc-date {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
 }
-.tw-top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.tw-company {
+.twc-company {
+  font-family: "Josefin Sans", sans-serif;
   font-weight: 700;
+  font-size: 16px;
+  line-height: 1.2;
   color: var(--navy);
 }
-.tw-cat {
-  font-size: 12px;
+.twc-cat {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   color: var(--muted);
 }
-.tw-reason {
-  margin-top: 3px;
+.twc-reason {
   font-size: 13.5px;
   line-height: 1.45;
   color: var(--ink);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.tw-date {
-  flex: none;
+.twc-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
   font-size: 12px;
   color: var(--muted);
-  white-space: nowrap;
 }
-@media (max-width: 560px) {
-  .tw-date {
-    display: none;
-  }
+.twc-go {
+  color: var(--denim);
+  font-weight: 600;
 }
 
 /* --- BRE workflow ------------------------------------------------------- */

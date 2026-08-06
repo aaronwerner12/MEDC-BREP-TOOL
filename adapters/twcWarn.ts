@@ -1,5 +1,5 @@
 import type { NormalizedSignal } from "../lib/types";
-import { type EmployerRow, matchEmployer } from "../lib/employers";
+import { type EmployerRow, matchEmployer, watchlistOnly } from "../lib/employers";
 
 // Texas WARN (Worker Adjustment and Retraining Notification) layoff notices.
 // The highest-value risk feed: a WARN filing is a legally required, dated
@@ -72,6 +72,11 @@ const MAX_AGE_DAYS = 730;
 export function mapWarnNotices(rows: Row[], employers: EmployerRow[]): NormalizedSignal[] {
   const out: NormalizedSignal[] = [];
 
+  // A statewide notice should resolve only to a tracked (watchlist) employer,
+  // never to one of the hundreds of same-worded discovered local businesses.
+  // Genuinely local notices still come through via the McKinney city filter.
+  const watchlist = watchlistOnly(employers);
+
   for (const raw of rows) {
     const r = normalizeKeys(raw);
     const company = pick(r, COMPANY_KEYS);
@@ -97,7 +102,7 @@ export function mapWarnNotices(rows: Row[], employers: EmployerRow[]): Normalize
     // Neighboring Collin County cities (Plano, Frisco, Allen, ...) are excluded
     // unless the employer is on the McKinney watchlist.
     const inMcKinney = /mckinney/i.test(city);
-    const match = matchEmployer(company, employers);
+    const match = matchEmployer(company, watchlist);
     if (!inMcKinney && !match) continue;
 
     const location =

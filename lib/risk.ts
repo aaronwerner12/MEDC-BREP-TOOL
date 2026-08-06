@@ -23,9 +23,16 @@ export interface RiskInput {
 }
 
 // Only recent events count. Anything older than this horizon is treated as stale
-// news and excluded from the index and the active queue.
-export const FRESHNESS_MONTHS = 24;
+// news and excluded from the index and the active queue. A retention signal over
+// a year old (a layoff that already happened, a closed acquisition) is history,
+// not early warning, so it drops out. Fresh developments re-surface a firm.
+export const FRESHNESS_MONTHS = 12;
 const FRESHNESS_DAYS = FRESHNESS_MONTHS * 30.44;
+
+// The "watch now" spotlight is tighter than the full queue: only items with
+// activity in this window count as a current priority. Older-but-within-year
+// items still live in the queue and on the profile, just not in the spotlight.
+export const WATCH_DAYS = 120;
 
 export type RiskLevel = "atrisk" | "elevated" | "watch" | "monitor" | "growth" | "stable";
 

@@ -6,6 +6,7 @@ import {
   computeRiskIndex,
   trendArrow,
   FRESHNESS_MONTHS,
+  WATCH_DAYS,
   type RiskInput,
   type RiskResult,
 } from "@/lib/risk";
@@ -432,22 +433,29 @@ function groupSignals(signals: SignalRow[]): QueueGroup[] {
 
 // The top few open items right now as scannable card blocks, ranked by severity
 // + recency so a fresh risk or a new material headline surfaces first. One card
-// per company.
+// per company. Bounded to recent activity (WATCH_DAYS) so stale items never
+// pose as a current priority.
 function TopWatch({ signals }: { signals: SignalRow[] }) {
-  const top = groupSignals(signals).slice(0, 5);
+  const cutoff = Date.now() - WATCH_DAYS * 86_400_000;
+  const top = groupSignals(signals)
+    .filter((g) => g.topDateMs >= cutoff)
+    .slice(0, 5);
   const labelFor = (s: SigType) => (s === "risk" ? "Risk" : s === "growth" ? "Growth" : "Watch");
+  const months = Math.round(WATCH_DAYS / 30);
 
   return (
     <section className="topwatch">
       <div className="tw-head">
         Top priorities to watch
         <span className="tw-sub">
-          {top.length > 0 ? `The ${top.length} biggest open items right now` : "Nothing open right now"}
+          {top.length > 0
+            ? `The ${top.length} biggest items with activity in the last ${months} months`
+            : `Nothing new in the last ${months} months`}
         </span>
       </div>
       {top.length === 0 ? (
         <div className="card empty" style={{ marginTop: 8 }}>
-          The desk is clear. No open signals to watch.
+          No recent priorities. Nothing with activity in the last {months} months.
         </div>
       ) : (
         <div className="tw-grid">

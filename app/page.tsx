@@ -263,6 +263,8 @@ export default async function Desk() {
         <>
           <Banner kpis={data.kpis} top={data.signals[0]} />
 
+          <TopWatch signals={data.signals} />
+
           <section className="kpis">
             <Kpi label="Notable employers" value={data.kpis.employers} icon={<BuildingIcon />} />
             <Kpi label="Active risks" value={data.kpis.risks} tone="risk" icon={<AlertIcon />} />
@@ -426,6 +428,58 @@ function groupSignals(signals: SignalRow[]): QueueGroup[] {
   };
   groups.sort((a, b) => rank(b) - rank(a));
   return groups;
+}
+
+// The top few open items right now, ranked by severity + recency, so a fresh
+// risk or a new material headline surfaces at the top. One row per company.
+function TopWatch({ signals }: { signals: SignalRow[] }) {
+  const top = groupSignals(signals).slice(0, 5);
+  const labelFor = (s: SigType) =>
+    s === "risk" ? "Risk" : s === "growth" ? "Growth" : "Watch";
+
+  return (
+    <section className="topwatch card">
+      <div className="tw-head">
+        Top priorities to watch
+        <span className="tw-sub">
+          {top.length > 0 ? `The ${top.length} biggest open items right now` : "Nothing open right now"}
+        </span>
+      </div>
+      {top.length === 0 ? (
+        <div className="empty">The desk is clear. No open signals to watch.</div>
+      ) : (
+        top.map((g, i) => {
+          const inner = (
+            <>
+              <span className="tw-rank">{i + 1}</span>
+              <span className={`sdot ${g.status}`} />
+              <div className="tw-main">
+                <div className="tw-top">
+                  <span className="tw-company">{g.company}</span>
+                  <span className={`badge ${g.status === "neutral" ? "watch" : g.status}`}>
+                    {labelFor(g.status)}
+                  </span>
+                  {g.count > 1 && <span className="reasons-chip">{g.count} reasons</span>}
+                  {g.categories[0] && <span className="tw-cat">{g.categories[0]}</span>}
+                </div>
+                <div className="tw-reason">{g.topSummary}</div>
+              </div>
+              {g.topDateIso && <span className="tw-date">{fmtDate(g.topDateIso)}</span>}
+            </>
+          );
+          return g.employerId != null ? (
+            <Link className={`tw-row ${g.status}`} key={g.key} href={`/employer/${g.employerId}`}>
+              {inner}
+            </Link>
+          ) : (
+            <div className={`tw-row ${g.status}`} key={g.key}>
+              {inner}
+            </div>
+          );
+        })
+      )}
+    </section>
+  );
 }
 
 function ActionQueue({ signals }: { signals: SignalRow[] }) {

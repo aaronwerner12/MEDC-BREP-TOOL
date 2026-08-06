@@ -1256,6 +1256,11 @@ a.twc:hover {
     align-items: start;
   }
 }
+/* Let each column shrink to its track and wrap its content, so nothing can
+   overflow sideways and paint over the neighboring column. */
+.grid > * {
+  min-width: 0;
+}
 .col-head {
   font-size: 12px;
   font-weight: 600;

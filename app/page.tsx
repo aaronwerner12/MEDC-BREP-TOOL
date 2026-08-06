@@ -271,8 +271,8 @@ export default async function Desk() {
               <SectionHead
                 title="Action queue"
                 sub="Every open item, most material first. One row per company."
-                meta={<Legend />}
               />
+              <Legend />
               <ActionQueue signals={data.signals} />
             </main>
 

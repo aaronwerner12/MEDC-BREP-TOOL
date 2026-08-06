@@ -552,6 +552,177 @@ a {
   justify-content: flex-end;
 }
 
+/* --- Section headers (shared, prominent) ------------------------------- */
+.section {
+  margin-top: 28px;
+}
+.section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px 20px;
+  flex-wrap: wrap;
+  margin: 0 2px 14px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--line);
+}
+.section-headings {
+  min-width: 0;
+}
+.section-title {
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: 0.2px;
+  color: var(--navy);
+}
+.section-sub {
+  margin: 3px 0 0;
+  font-family: "Libre Franklin", ui-sans-serif, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.section-meta {
+  flex: none;
+}
+.section-meta .legend {
+  margin-bottom: 0;
+}
+
+/* --- Daily briefing (the desk lead) ------------------------------------ */
+.brief {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--navy);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px 22px;
+  margin-bottom: 4px;
+}
+.brief-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+}
+.brief-eyebrow {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--denim);
+}
+.statline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.stat svg {
+  width: 13px;
+  height: 13px;
+}
+.stat.risk {
+  color: var(--brick-ink);
+}
+.stat.growth {
+  color: var(--mint-ink);
+}
+.stat.watch {
+  color: var(--sun-ink);
+}
+.brief-headline {
+  font-size: 24px;
+  line-height: 1.2;
+  margin: 12px 0 0;
+  color: var(--navy);
+}
+.brief-todos {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.brief-todo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--muted);
+  color: var(--ink);
+  transition: background 0.08s ease, transform 0.08s ease;
+}
+.brief-todo:hover {
+  background: #fff;
+  transform: translateX(1px);
+}
+.brief-todo.risk {
+  border-left-color: var(--brick);
+}
+.brief-todo.watch {
+  border-left-color: var(--sun);
+}
+.brief-todo.neutral {
+  border-left-color: var(--denim);
+}
+.brief-todo .sdot {
+  width: 9px;
+  height: 9px;
+}
+.brief-todo-text {
+  font-size: 14px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+}
+.brief-todo-go {
+  color: var(--denim);
+  font-weight: 700;
+  flex: none;
+}
+.brief-clear {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: var(--ink);
+}
+.brief-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.brief-worksheet {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--denim);
+  text-decoration: none;
+}
+.brief-worksheet:hover {
+  text-decoration: underline;
+}
+
 /* --- Top priorities to watch (card blocks) ----------------------------- */
 .topwatch {
   margin-top: 16px;

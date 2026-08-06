@@ -262,28 +262,22 @@ export default async function Desk() {
 
       {data.state === "ok" && (
         <>
-          <Banner kpis={data.kpis} top={data.signals[0]} />
+          <DailyBriefing kpis={data.kpis} workflow={data.workflow} signals={data.signals} />
 
           <TopWatch signals={data.signals} />
 
-          <section className="kpis">
-            <Kpi label="Notable employers" value={data.kpis.employers} icon={<BuildingIcon />} />
-            <Kpi label="Active risks" value={data.kpis.risks} tone="risk" icon={<AlertIcon />} />
-            <Kpi label="Growth signals" value={data.kpis.growth} tone="growth" icon={<TrendIcon />} />
-            <Kpi label="Needs outreach" value={data.kpis.outreach} tone="watch" icon={<PulseIcon />} />
-          </section>
-
-          <WorkflowStrip w={data.workflow} />
-
           <div className="grid">
-            <main>
-              <div className="col-head">Action queue · by priority</div>
-              <Legend />
+            <main className="section">
+              <SectionHead
+                title="Action queue"
+                sub="Every open item, most material first. One row per company."
+                meta={<Legend />}
+              />
               <ActionQueue signals={data.signals} />
             </main>
 
-            <aside>
-              <div className="col-head">Notable Employers (Tracked by MEDC)</div>
+            <aside className="section">
+              <SectionHead title="Notable employers" sub="Tracked by MEDC, grouped by size." />
               <Watchlist
                 employers={data.employers}
                 statusByEmployer={data.statusByEmployer}
@@ -298,73 +292,132 @@ export default async function Desk() {
   );
 }
 
-function Banner({ kpis, top }: { kpis: Kpis; top: SignalRow | undefined }) {
-  const lead =
-    kpis.risks > 0 && top
-      ? `${top.company} is your top priority right now (${top.category}).`
+// A prominent, consistent header for every desk section: a big title, a
+// one-line subtitle, and optional right-aligned meta (a legend, an action).
+function SectionHead({
+  title,
+  sub,
+  meta,
+}: {
+  title: string;
+  sub?: string;
+  meta?: React.ReactNode;
+}) {
+  return (
+    <div className="section-head">
+      <div className="section-headings">
+        <h2 className="section-title">{title}</h2>
+        {sub && <p className="section-sub">{sub}</p>}
+      </div>
+      {meta && <div className="section-meta">{meta}</div>}
+    </div>
+  );
+}
+
+interface Todo {
+  tone: "risk" | "watch" | "neutral";
+  text: string;
+  href: string;
+}
+
+// The lead of the desk: a plain-language read of what matters today plus the
+// concrete next steps, built only from real workflow state and open signals.
+// Absorbs the old summary banner, KPI tiles, and workflow strip into one
+// action-first block, so each fact appears once.
+function DailyBriefing({
+  kpis,
+  workflow,
+  signals,
+}: {
+  kpis: Kpis;
+  workflow: Workflow;
+  signals: SignalRow[];
+}) {
+  const today = fmtDate(new Date().toISOString());
+  const topRisk = groupSignals(signals).find((g) => g.status === "risk");
+  const s = (n: number) => (n === 1 ? "" : "s");
+
+  const headline =
+    workflow.overdueFollowups > 0
+      ? "You have overdue follow-ups. Start there."
+      : topRisk
+      ? `${topRisk.company} needs a look today.`
+      : workflow.visitsDue > 0
+      ? "Time to line up a retention visit."
       : kpis.outreach > 0
-      ? `${kpis.outreach} open signal${kpis.outreach === 1 ? "" : "s"} to review across notable employers.`
-      : "The desk is clear. No open signals right now.";
+      ? `${kpis.outreach} open signal${s(kpis.outreach)} to review.`
+      : "The desk is clear. Nothing needs action today.";
+
+  const todos: Todo[] = [];
+  if (topRisk) {
+    todos.push({
+      tone: "risk",
+      text: `Review ${topRisk.company} — top retention concern${
+        topRisk.categories[0] ? ` (${topRisk.categories[0]})` : ""
+      }`,
+      href: topRisk.employerId != null ? `/employer/${topRisk.employerId}` : "#",
+    });
+  }
+  if (workflow.openFollowups > 0) {
+    todos.push({
+      tone: workflow.overdueFollowups > 0 ? "risk" : "neutral",
+      text:
+        `${workflow.openFollowups} open follow-up${s(workflow.openFollowups)}` +
+        (workflow.overdueFollowups > 0 ? ` — ${workflow.overdueFollowups} overdue` : ""),
+      href: "/followups",
+    });
+  }
+  if (workflow.visitsDue > 0) {
+    todos.push({
+      tone: "watch",
+      text: `${workflow.visitsDue} notable employer${s(workflow.visitsDue)} due for a retention visit`,
+      href: "/followups",
+    });
+  }
 
   return (
-    <div className="banner">
-      <div className="banner-main">
-        <h2>Here&rsquo;s where things stand.</h2>
-        <p>{lead}</p>
+    <section className="brief">
+      <div className="brief-top">
+        <span className="brief-eyebrow">What to do today · {today}</span>
+        <div className="statline">
+          <span className="stat"><BuildingIcon /> {kpis.employers} tracked</span>
+          <span className="stat risk"><AlertIcon /> {kpis.risks} risk{s(kpis.risks)}</span>
+          <span className="stat growth"><TrendIcon /> {kpis.growth} growth</span>
+          <span className="stat watch"><PulseIcon /> {kpis.outreach} open</span>
+        </div>
       </div>
-      <div className="banner-actions">
-        <span className="pill">
-          <PulseIcon /> {kpis.outreach} open
-        </span>
+
+      <h2 className="brief-headline">{headline}</h2>
+
+      {todos.length > 0 ? (
+        <ul className="brief-todos">
+          {todos.map((t, i) => (
+            <li key={i}>
+              <Link className={`brief-todo ${t.tone}`} href={t.href}>
+                <span className={`sdot ${t.tone === "neutral" ? "neutral" : t.tone}`} />
+                <span className="brief-todo-text">{t.text}</span>
+                <span className="brief-todo-go">→</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="brief-clear">
+          No open follow-ups or visits due. {kpis.outreach > 0
+            ? `${kpis.outreach} signal${s(kpis.outreach)} below to skim when you have a moment.`
+            : "Nothing in the queue."}
+        </p>
+      )}
+
+      <div className="brief-actions">
+        <Link className="brief-worksheet" href="/followups">
+          Open the retention worksheet →
+        </Link>
         <form action={pullFeeds}>
           <PullButton />
         </form>
       </div>
-    </div>
-  );
-}
-
-function WorkflowStrip({ w }: { w: Workflow }) {
-  const clear = w.openFollowups === 0 && w.visitsDue === 0;
-  return (
-    <Link className={`wf-strip ${w.overdueFollowups > 0 ? "alert" : ""}`} href="/followups">
-      <span className="wf-strip-label">Retention workflow</span>
-      {clear ? (
-        <span className="wf-strip-item">All caught up. No open follow-ups or visits due.</span>
-      ) : (
-        <>
-          <span className="wf-strip-item">
-            <strong>{w.openFollowups}</strong> open follow-up{w.openFollowups === 1 ? "" : "s"}
-            {w.overdueFollowups > 0 && <em className="wf-over"> · {w.overdueFollowups} overdue</em>}
-          </span>
-          <span className="wf-strip-item">
-            <strong>{w.visitsDue}</strong> notable employer{w.visitsDue === 1 ? "" : "s"} due for a visit
-          </span>
-        </>
-      )}
-      <span className="wf-strip-go">Open worksheet →</span>
-    </Link>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  tone,
-  icon,
-}: {
-  label: string;
-  value: number;
-  tone?: "risk" | "growth" | "watch";
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className={`kpi ${tone ?? ""}`}>
-      <div className="label">
-        {icon} {label}
-      </div>
-      <div className="num">{value}</div>
-    </div>
+    </section>
   );
 }
 
@@ -444,15 +497,16 @@ function TopWatch({ signals }: { signals: SignalRow[] }) {
   const months = Math.round(WATCH_DAYS / 30);
 
   return (
-    <section className="topwatch">
-      <div className="tw-head">
-        Top priorities to watch
-        <span className="tw-sub">
-          {top.length > 0
+    <section className="topwatch section">
+      <SectionHead
+        title="Top things to watch"
+        sub={
+          top.length > 0
             ? `The ${top.length} biggest items with activity in the last ${months} months`
-            : `Nothing new in the last ${months} months`}
-        </span>
-      </div>
+            : `Nothing new in the last ${months} months`
+        }
+      />
+
       {top.length === 0 ? (
         <div className="card empty" style={{ marginTop: 8 }}>
           No recent priorities. Nothing with activity in the last {months} months.

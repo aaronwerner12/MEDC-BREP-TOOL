@@ -845,7 +845,14 @@ a.twc:hover {
   font-weight: 600;
 }
 
-/* Headquarters line, shown on highlighted entities across the desk. */
+/* HQ and McKinney location lines, shown on highlighted entities across the
+   desk. HQ is the corporate headquarters; McKinney is the local site when the
+   McKinney operation is a satellite. */
+.place-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
 .hq-line {
   display: flex;
   align-items: flex-start;
@@ -861,12 +868,19 @@ a.twc:hover {
   margin-top: 1px;
   color: var(--denim);
 }
+.place-lbl {
+  font-weight: 700;
+  color: var(--denim);
+  letter-spacing: 0.2px;
+}
 /* Slightly tighter inside the compact queue rows and the employer list. */
-.signal.compact .hq-line {
+.signal.compact .place-lines {
   margin-top: 5px;
 }
-.emp .hq-line {
+.emp .place-lines {
   margin-top: 2px;
+}
+.emp .hq-line {
   font-size: 11.5px;
 }
 

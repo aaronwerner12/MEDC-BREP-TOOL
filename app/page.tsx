@@ -15,13 +15,51 @@ import { PullButton } from "./pull-button";
 import { RiskBadge } from "./risk-badge";
 import { parseProfile } from "@/lib/profile";
 
-// Pull the resolved headquarters location out of an employer's stored profile
-// (real, sourced data from the free profile chain, never fabricated). Returns
-// null when no profile or no verified HQ is on file.
-function hqFromProfile(profile: string | null): string | null {
+interface EmployerPlace {
+  hq: string | null; // corporate headquarters (city/state, or a full address when the source had one)
+  local: string | null; // the McKinney / Collin County site, for satellite locations
+}
+
+// Pull the resolved locations out of an employer's stored profile (real, sourced
+// data from the free profile chain, never fabricated). Returns the corporate HQ
+// and the local McKinney presence. Either may be null when not on file.
+function placeFromProfile(profile: string | null): EmployerPlace {
   const { fields } = parseProfile(profile);
-  const hq = fields.find((f) => f.label === "Headquarters");
-  return hq && hq.value ? hq.value : null;
+  const val = (label: string) => {
+    const f = fields.find((x) => x.label === label);
+    return f && f.value ? f.value : null;
+  };
+  return { hq: val("Headquarters"), local: val("McKinney / Collin County presence") };
+}
+
+// The HQ and McKinney-location lines shown under a highlighted company. When
+// McKinney is the headquarters, the two collapse to one line; when McKinney is a
+// satellite, both show so the local address is always visible.
+function PlaceLines({ place }: { place: EmployerPlace | undefined }) {
+  if (!place) return null;
+  const { hq, local } = place;
+  const showLocal = !!local && local !== hq;
+  if (!hq && !showLocal) return null;
+  return (
+    <div className="place-lines">
+      {hq && (
+        <div className="hq-line">
+          <PinIcon />
+          <span>
+            <span className="place-lbl">HQ</span> {hq}
+          </span>
+        </div>
+      )}
+      {showLocal && (
+        <div className="hq-line">
+          <BuildingIcon />
+          <span>
+            <span className="place-lbl">McKinney</span> {local}
+          </span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // The desk uses the layout's default title, so its tab reads
@@ -82,7 +120,7 @@ type DeskData =
       statusByEmployer: Map<number, Status>;
       scoreByEmployer: Map<number, RiskResult>;
       prevScoreByEmployer: Map<number, number>;
-      hqByEmployer: Map<number, string>;
+      placeByEmployer: Map<number, EmployerPlace>;
       kpis: Kpis;
       workflow: Workflow;
     }
@@ -191,9 +229,10 @@ async function readDesk(): Promise<DeskData> {
     `) as { employer_id: number; score: number }[];
     const prevScoreByEmployer = new Map<number, number>(prevRows.map((r) => [r.employer_id, r.score]));
 
-    // Headquarters per employer, parsed from stored profiles. Bounded to the
-    // employers actually shown (watchlist + anyone appearing in open signals).
-    const hqByEmployer = new Map<number, string>();
+    // HQ and McKinney location per employer, parsed from stored profiles.
+    // Bounded to the employers actually shown (watchlist + anyone appearing in
+    // open signals).
+    const placeByEmployer = new Map<number, EmployerPlace>();
     const empIds = new Set<number>(employers.map((e) => e.id));
     for (const s of signals) if (s.employer_id != null) empIds.add(s.employer_id);
     const idList = [...empIds];
@@ -203,8 +242,8 @@ async function readDesk(): Promise<DeskData> {
         where id = any(${idList}) and profile is not null
       `) as { id: number; profile: string | null }[];
       for (const r of profRows) {
-        const hq = hqFromProfile(r.profile);
-        if (hq) hqByEmployer.set(r.id, hq);
+        const place = placeFromProfile(r.profile);
+        if (place.hq || place.local) placeByEmployer.set(r.id, place);
       }
     }
 
@@ -245,7 +284,7 @@ async function readDesk(): Promise<DeskData> {
       statusByEmployer,
       scoreByEmployer,
       prevScoreByEmployer,
-      hqByEmployer,
+      placeByEmployer,
       kpis,
       workflow,
     };
@@ -293,7 +332,7 @@ export default async function Desk() {
         <>
           <DailyBriefing kpis={data.kpis} workflow={data.workflow} signals={data.signals} />
 
-          <TopWatch signals={data.signals} hqByEmployer={data.hqByEmployer} />
+          <TopWatch signals={data.signals} placeByEmployer={data.placeByEmployer} />
 
           <div className="grid">
             <main className="section">
@@ -302,7 +341,7 @@ export default async function Desk() {
                 sub="Every open item, most material first. One row per company."
               />
               <Legend />
-              <ActionQueue signals={data.signals} hqByEmployer={data.hqByEmployer} />
+              <ActionQueue signals={data.signals} placeByEmployer={data.placeByEmployer} />
             </main>
 
             <aside className="section">
@@ -312,7 +351,7 @@ export default async function Desk() {
                 statusByEmployer={data.statusByEmployer}
                 scoreByEmployer={data.scoreByEmployer}
                 prevScoreByEmployer={data.prevScoreByEmployer}
-                hqByEmployer={data.hqByEmployer}
+                placeByEmployer={data.placeByEmployer}
               />
             </aside>
           </div>
@@ -520,10 +559,10 @@ function groupSignals(signals: SignalRow[]): QueueGroup[] {
 // pose as a current priority.
 function TopWatch({
   signals,
-  hqByEmployer,
+  placeByEmployer,
 }: {
   signals: SignalRow[];
-  hqByEmployer: Map<number, string>;
+  placeByEmployer: Map<number, EmployerPlace>;
 }) {
   const cutoff = Date.now() - WATCH_DAYS * 86_400_000;
   const top = groupSignals(signals)
@@ -560,11 +599,7 @@ function TopWatch({
                 </div>
                 <div className="twc-company">{g.company}</div>
                 {g.categories[0] && <div className="twc-cat">{g.categories[0]}</div>}
-                {g.employerId != null && hqByEmployer.get(g.employerId) && (
-                  <div className="hq-line">
-                    <PinIcon /> {hqByEmployer.get(g.employerId)}
-                  </div>
-                )}
+                {g.employerId != null && <PlaceLines place={placeByEmployer.get(g.employerId)} />}
                 <div className="twc-reason">{g.topSummary}</div>
                 <div className="twc-foot">
                   {g.count > 1 ? `${g.count} open signals` : "1 open signal"}
@@ -590,10 +625,10 @@ function TopWatch({
 
 function ActionQueue({
   signals,
-  hqByEmployer,
+  placeByEmployer,
 }: {
   signals: SignalRow[];
-  hqByEmployer: Map<number, string>;
+  placeByEmployer: Map<number, EmployerPlace>;
 }) {
   const groups = groupSignals(signals);
   if (groups.length === 0) {
@@ -605,14 +640,14 @@ function ActionQueue({
         <QueueGroupRow
           key={g.key}
           g={g}
-          hq={g.employerId != null ? hqByEmployer.get(g.employerId) ?? null : null}
+          place={g.employerId != null ? placeByEmployer.get(g.employerId) : undefined}
         />
       ))}
     </>
   );
 }
 
-function QueueGroupRow({ g, hq }: { g: QueueGroup; hq: string | null }) {
+function QueueGroupRow({ g, place }: { g: QueueGroup; place: EmployerPlace | undefined }) {
   return (
     <div className={`signal compact ${g.status}`}>
       <div className="sig-top">
@@ -638,11 +673,7 @@ function QueueGroupRow({ g, hq }: { g: QueueGroup; hq: string | null }) {
         )}
       </div>
 
-      {hq && (
-        <div className="hq-line">
-          <PinIcon /> {hq}
-        </div>
-      )}
+      <PlaceLines place={place} />
 
       <div className="sig-body clamp">{g.topSummary}</div>
 
@@ -683,13 +714,13 @@ function Watchlist({
   statusByEmployer,
   scoreByEmployer,
   prevScoreByEmployer,
-  hqByEmployer,
+  placeByEmployer,
 }: {
   employers: EmployerRow[];
   statusByEmployer: Map<number, Status>;
   scoreByEmployer: Map<number, RiskResult>;
   prevScoreByEmployer: Map<number, number>;
-  hqByEmployer: Map<number, string>;
+  placeByEmployer: Map<number, EmployerPlace>;
 }) {
   if (employers.length === 0) {
     return <div className="empty">No notable employers yet. Run the seed migrations.</div>;
@@ -723,11 +754,7 @@ function Watchlist({
                   <div className="info">
                     <div className="name">{e.name}</div>
                     {e.sector && <div className="sector">{e.sector}</div>}
-                    {hqByEmployer.get(e.id) && (
-                      <div className="hq-line">
-                        <PinIcon /> {hqByEmployer.get(e.id)}
-                      </div>
-                    )}
+                    <PlaceLines place={placeByEmployer.get(e.id)} />
                   </div>
                   {risk && (risk.level === "growth" || risk.level === "stable") ? (
                     <span className={`status ${st}`}>{statusLabel(st)}</span>

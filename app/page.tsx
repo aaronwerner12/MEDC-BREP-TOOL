@@ -13,6 +13,16 @@ import {
 import { handleEmployer, pullFeeds } from "./actions";
 import { PullButton } from "./pull-button";
 import { RiskBadge } from "./risk-badge";
+import { parseProfile } from "@/lib/profile";
+
+// Pull the resolved headquarters location out of an employer's stored profile
+// (real, sourced data from the free profile chain, never fabricated). Returns
+// null when no profile or no verified HQ is on file.
+function hqFromProfile(profile: string | null): string | null {
+  const { fields } = parseProfile(profile);
+  const hq = fields.find((f) => f.label === "Headquarters");
+  return hq && hq.value ? hq.value : null;
+}
 
 // The desk uses the layout's default title, so its tab reads
 // "McKinney Business Retention & Expansion Monitor" with no suffix.
@@ -72,6 +82,7 @@ type DeskData =
       statusByEmployer: Map<number, Status>;
       scoreByEmployer: Map<number, RiskResult>;
       prevScoreByEmployer: Map<number, number>;
+      hqByEmployer: Map<number, string>;
       kpis: Kpis;
       workflow: Workflow;
     }
@@ -180,6 +191,23 @@ async function readDesk(): Promise<DeskData> {
     `) as { employer_id: number; score: number }[];
     const prevScoreByEmployer = new Map<number, number>(prevRows.map((r) => [r.employer_id, r.score]));
 
+    // Headquarters per employer, parsed from stored profiles. Bounded to the
+    // employers actually shown (watchlist + anyone appearing in open signals).
+    const hqByEmployer = new Map<number, string>();
+    const empIds = new Set<number>(employers.map((e) => e.id));
+    for (const s of signals) if (s.employer_id != null) empIds.add(s.employer_id);
+    const idList = [...empIds];
+    if (idList.length) {
+      const profRows = (await sql`
+        select id, profile from employers
+        where id = any(${idList}) and profile is not null
+      `) as { id: number; profile: string | null }[];
+      for (const r of profRows) {
+        const hq = hqFromProfile(r.profile);
+        if (hq) hqByEmployer.set(r.id, hq);
+      }
+    }
+
     const kpis: Kpis = {
       employers: employers.length,
       risks: signals.filter((s) => s.signal_type === "risk").length,
@@ -217,6 +245,7 @@ async function readDesk(): Promise<DeskData> {
       statusByEmployer,
       scoreByEmployer,
       prevScoreByEmployer,
+      hqByEmployer,
       kpis,
       workflow,
     };
@@ -264,7 +293,7 @@ export default async function Desk() {
         <>
           <DailyBriefing kpis={data.kpis} workflow={data.workflow} signals={data.signals} />
 
-          <TopWatch signals={data.signals} />
+          <TopWatch signals={data.signals} hqByEmployer={data.hqByEmployer} />
 
           <div className="grid">
             <main className="section">
@@ -273,7 +302,7 @@ export default async function Desk() {
                 sub="Every open item, most material first. One row per company."
               />
               <Legend />
-              <ActionQueue signals={data.signals} />
+              <ActionQueue signals={data.signals} hqByEmployer={data.hqByEmployer} />
             </main>
 
             <aside className="section">
@@ -283,6 +312,7 @@ export default async function Desk() {
                 statusByEmployer={data.statusByEmployer}
                 scoreByEmployer={data.scoreByEmployer}
                 prevScoreByEmployer={data.prevScoreByEmployer}
+                hqByEmployer={data.hqByEmployer}
               />
             </aside>
           </div>
@@ -488,7 +518,13 @@ function groupSignals(signals: SignalRow[]): QueueGroup[] {
 // + recency so a fresh risk or a new material headline surfaces first. One card
 // per company. Bounded to recent activity (WATCH_DAYS) so stale items never
 // pose as a current priority.
-function TopWatch({ signals }: { signals: SignalRow[] }) {
+function TopWatch({
+  signals,
+  hqByEmployer,
+}: {
+  signals: SignalRow[];
+  hqByEmployer: Map<number, string>;
+}) {
   const cutoff = Date.now() - WATCH_DAYS * 86_400_000;
   const top = groupSignals(signals)
     .filter((g) => g.topDateMs >= cutoff)
@@ -524,6 +560,11 @@ function TopWatch({ signals }: { signals: SignalRow[] }) {
                 </div>
                 <div className="twc-company">{g.company}</div>
                 {g.categories[0] && <div className="twc-cat">{g.categories[0]}</div>}
+                {g.employerId != null && hqByEmployer.get(g.employerId) && (
+                  <div className="hq-line">
+                    <PinIcon /> {hqByEmployer.get(g.employerId)}
+                  </div>
+                )}
                 <div className="twc-reason">{g.topSummary}</div>
                 <div className="twc-foot">
                   {g.count > 1 ? `${g.count} open signals` : "1 open signal"}
@@ -547,7 +588,13 @@ function TopWatch({ signals }: { signals: SignalRow[] }) {
   );
 }
 
-function ActionQueue({ signals }: { signals: SignalRow[] }) {
+function ActionQueue({
+  signals,
+  hqByEmployer,
+}: {
+  signals: SignalRow[];
+  hqByEmployer: Map<number, string>;
+}) {
   const groups = groupSignals(signals);
   if (groups.length === 0) {
     return <div className="empty">No open signals. The desk is clear.</div>;
@@ -555,13 +602,17 @@ function ActionQueue({ signals }: { signals: SignalRow[] }) {
   return (
     <>
       {groups.map((g) => (
-        <QueueGroupRow key={g.key} g={g} />
+        <QueueGroupRow
+          key={g.key}
+          g={g}
+          hq={g.employerId != null ? hqByEmployer.get(g.employerId) ?? null : null}
+        />
       ))}
     </>
   );
 }
 
-function QueueGroupRow({ g }: { g: QueueGroup }) {
+function QueueGroupRow({ g, hq }: { g: QueueGroup; hq: string | null }) {
   return (
     <div className={`signal compact ${g.status}`}>
       <div className="sig-top">
@@ -586,6 +637,12 @@ function QueueGroupRow({ g }: { g: QueueGroup }) {
           </form>
         )}
       </div>
+
+      {hq && (
+        <div className="hq-line">
+          <PinIcon /> {hq}
+        </div>
+      )}
 
       <div className="sig-body clamp">{g.topSummary}</div>
 
@@ -626,11 +683,13 @@ function Watchlist({
   statusByEmployer,
   scoreByEmployer,
   prevScoreByEmployer,
+  hqByEmployer,
 }: {
   employers: EmployerRow[];
   statusByEmployer: Map<number, Status>;
   scoreByEmployer: Map<number, RiskResult>;
   prevScoreByEmployer: Map<number, number>;
+  hqByEmployer: Map<number, string>;
 }) {
   if (employers.length === 0) {
     return <div className="empty">No notable employers yet. Run the seed migrations.</div>;
@@ -664,6 +723,11 @@ function Watchlist({
                   <div className="info">
                     <div className="name">{e.name}</div>
                     {e.sector && <div className="sector">{e.sector}</div>}
+                    {hqByEmployer.get(e.id) && (
+                      <div className="hq-line">
+                        <PinIcon /> {hqByEmployer.get(e.id)}
+                      </div>
+                    )}
                   </div>
                   {risk && (risk.level === "growth" || risk.level === "stable") ? (
                     <span className={`status ${st}`}>{statusLabel(st)}</span>

@@ -1247,9 +1247,12 @@ a.twc:hover {
   grid-template-columns: 1fr;
   gap: 28px;
 }
-@media (min-width: 940px) {
+/* Two columns only once the content box (viewport minus the 74px nav rail) is
+   wide enough that the employer panel isn't starved. Below this, stack so long
+   employer names get the full width. */
+@media (min-width: 1080px) {
   .grid {
-    grid-template-columns: 1.75fr 1fr;
+    grid-template-columns: 1.7fr minmax(320px, 1fr);
     align-items: start;
   }
 }
@@ -1828,7 +1831,7 @@ a.twc:hover {
 }
 .emp {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 11px;
   padding: 11px 16px;
   border-bottom: 1px solid var(--line);
@@ -1843,6 +1846,11 @@ a.twc:hover {
   flex: none;
   background: #c3ccd3;
 }
+/* Keep the status dot on the first line of the name when it wraps, instead of
+   drifting to the vertical center of the row. */
+.emp .dot {
+  margin-top: 5px;
+}
 .dot.risk {
   background: var(--brick);
 }
@@ -1853,6 +1861,7 @@ a.twc:hover {
   background: var(--sun);
 }
 .emp .info {
+  flex: 1;
   min-width: 0;
 }
 .emp .name {

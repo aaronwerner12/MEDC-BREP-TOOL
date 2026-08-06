@@ -74,6 +74,27 @@ structured source, so that field may stay "unknown" even with both keys set.
 To backfill everyone at once, use the **Businesses** page: "Fill missing
 profiles (free)" and "Scan news for all (free)".
 
+## Export API (Salesforce / CRM)
+
+Read-only JSON endpoints let an external system pull the desk's data. They are
+OFF until you set `EXPORT_TOKEN`; once set, every request must send that token
+as `Authorization: Bearer <token>` (a `?token=` query param also works).
+
+- `GET /api/export/employers` — the directory with risk index, last visit, and
+  open-flag count (maps to a CRM Account).
+- `GET /api/export/signals` — open signals, most material first (maps to CRM
+  activity/notes).
+- `GET /api/export/followups` — open red/green flags with owner, urgency, and
+  due date (maps to CRM Tasks).
+- `GET /api/export` — index of the above; doubles as a token check.
+
+Each returns `{ count, records: [...] }`. To wire Salesforce, register the base
+URL and token as a Named Credential and pull with a scheduled Flow / External
+Services, or point Zapier / Make at the endpoints. No Salesforce credentials
+live in this app. Full two-way sync (writing Accounts/Tasks back into
+Salesforce) is a separate step that needs your SF org, a Connected App, and
+field mapping.
+
 ## The two worked feeds
 
 **USASpending (RTX)** — `adapters/usaspending.ts`. Free public API, no key. Pulls Collin County contract awards for the defense cluster and flags near-term expirations (the leading layoff indicator for a defense site) and new/large awards. Runs weekly.

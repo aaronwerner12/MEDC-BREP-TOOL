@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { runAllFeeds } from "@/lib/pipeline";
 import { generateEmployerBrief, type BriefSignal } from "@/lib/brief";
 import { generateEmployerBriefRules } from "@/lib/briefRules";
-import { generateCompanyProfile } from "@/lib/profile";
+import { generateCompanyProfile, type CompanyProfile } from "@/lib/profile";
 import { resolveFreeProfile } from "@/lib/companyProfile";
 import { ingestEmployerNews } from "@/lib/newsPipeline";
 import { discoverMcKinneyEmployers } from "@/lib/discover";
@@ -509,6 +509,97 @@ export async function fillMissingProfiles(
   revalidatePath("/businesses");
   revalidatePath("/");
   return { ok: true, scanned: emps.length, filled, remaining };
+}
+
+const PROFILE_KEYS: (keyof CompanyProfile)[] = [
+  "whatTheyDo",
+  "headquarters",
+  "localPresence",
+  "employees",
+  "executives",
+  "ownership",
+];
+
+function isRealValue(v: unknown): v is string {
+  return typeof v === "string" && v.trim().length > 0 && v.trim().toLowerCase() !== "unknown";
+}
+
+// Merge a freshly resolved profile over the stored one, field by field. A fresh
+// real value wins (that is the verification), but a field the fresh pass could
+// not confirm keeps its stored value rather than being wiped to "unknown".
+function mergeProfile(existing: string | null, fresh: CompanyProfile): string {
+  let old: Partial<CompanyProfile> = {};
+  if (existing && existing.trim().startsWith("{")) {
+    try {
+      old = JSON.parse(existing) as Partial<CompanyProfile>;
+    } catch {
+      // stored profile was plain text; treat as empty and let fresh values fill.
+    }
+  }
+  const merged = {} as CompanyProfile;
+  for (const k of PROFILE_KEYS) {
+    merged[k] = isRealValue(fresh[k])
+      ? (fresh[k] as string)
+      : isRealValue(old[k])
+      ? (old[k] as string)
+      : "unknown";
+  }
+  return JSON.stringify(merged);
+}
+
+// Verify and top up EXISTING profiles (the counterpart to fillMissingProfiles,
+// which only fills blanks). Re-resolves the stalest profiles from the free
+// source chain and merges the result, so facts stay current and any fields that
+// were "unknown" fill in as sources improve. storeProfile stamps profile_at, so
+// ordering by it rotates through every company over successive runs. Bounded per
+// call for the serverless budget; free (no AI, no tokens).
+export async function refreshProfiles(
+  limit = 6
+): Promise<{ ok: boolean; scanned: number; updated: number; error?: string }> {
+  try {
+    await ensureSchema();
+  } catch {
+    // best-effort
+  }
+
+  let emps: { id: number; name: string; sector: string | null; profile: string }[];
+  try {
+    emps = (await sql`
+      select id, coalesce(official_name, name) as name, sector, profile
+      from employers
+      where active = true and profile is not null and profile <> ''
+      order by profile_at asc nulls first
+      limit ${limit}
+    `) as { id: number; name: string; sector: string | null; profile: string }[];
+  } catch (e) {
+    return { ok: false, scanned: 0, updated: 0, error: e instanceof Error ? e.message : "Query failed." };
+  }
+
+  let updated = 0;
+  const CONCURRENCY = 3;
+  let next = 0;
+  async function worker() {
+    while (next < emps.length) {
+      const e = emps[next++];
+      try {
+        const free = await resolveFreeProfile({ name: e.name, sector: e.sector });
+        if (free) {
+          await storeProfile(e.id, e.name, mergeProfile(e.profile, free.profile), free.officialName);
+          updated++;
+        } else {
+          // Nothing to re-resolve; still mark it checked so the rotation moves on.
+          await sql`update employers set profile_at = now() where id = ${e.id}`;
+        }
+      } catch {
+        // skip a company that fails; others continue
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, emps.length) }, worker));
+
+  revalidatePath("/");
+  revalidatePath("/businesses");
+  return { ok: true, scanned: emps.length, updated };
 }
 
 // Server action: generate and cache a grounded briefing for one employer,

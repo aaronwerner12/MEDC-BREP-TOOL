@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { runAllFeeds } from "@/lib/pipeline";
-import { fillMissingProfiles } from "@/app/actions";
+import { fillMissingProfiles, refreshProfiles } from "@/app/actions";
 
 export const maxDuration = 60;
 
@@ -29,5 +29,15 @@ export async function GET(req: Request) {
     profiles = { error: e instanceof Error ? e.message : String(e) };
   }
 
-  return NextResponse.json({ ran, profiles });
+  // Also verify and top up a rotating batch of EXISTING profiles, so facts stay
+  // current and previously-unknown fields fill in over time. Best-effort.
+  let refreshed: { scanned: number; updated: number } | { error: string } | null = null;
+  try {
+    const r = await refreshProfiles(6);
+    refreshed = { scanned: r.scanned, updated: r.updated };
+  } catch (e) {
+    refreshed = { error: e instanceof Error ? e.message : String(e) };
+  }
+
+  return NextResponse.json({ ran, profiles, refreshed });
 }

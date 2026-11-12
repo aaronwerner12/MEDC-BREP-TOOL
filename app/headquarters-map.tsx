@@ -74,9 +74,20 @@ export function HeadquartersMap({employers}:{employers:Employer[]}) {
         {groups.map(([country,companies])=>{const [x,y]=project(LOCATIONS[country]);return <g key={country} role="button" tabIndex={0} aria-label={`${country}: ${companies.length} companies`} onClick={()=>setSelected(selected===country?null:country)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setSelected(selected===country?null:country)}}} style={{cursor:"pointer"}}><circle cx={x} cy={y} r={selected===country?13:10} fill={selected===country?"#e1a947":"#0e6e79"} stroke="white" strokeWidth="2"/><text x={x} y={y+4} textAnchor="middle" fontSize="11" fontWeight="700" fill="white">{companies.length}</text><title>{country}: {companies.map(e=>e.name).join(", ")}</title></g>})}
         <circle cx={MCKINNEY[0]} cy={MCKINNEY[1]} r="7" fill="#cf633d" stroke="white" strokeWidth="2"/>
         <text x={MCKINNEY[0]+12} y={MCKINNEY[1]-11} fontSize="15" fontWeight="700" fill="#23464d">McKinney</text>
-      </svg>\n      {mapError&&<p role="alert">Country boundary data could not load. The company registry remains available.</p>}\n      {!mapError&&land.length===0&&<p>Loading geographic boundaries…</p>}\n      {groups.length===0&&<p>No companies mapped yet. Assign verified headquarters countries below to display connections.</p>}
+      </svg>\n      {mapError&&<p role="alert">Country boundary data could not load. The company registry remains available.</p>}
+      {!mapError&&land.length===0&&<p>Loading geographic boundaries…</p>}
+      {groups.length===0&&<p>No companies mapped yet. Assign verified headquarters countries below to display connections.</p>}
       <small style={{display:"block",marginTop:8}}>Real country outlines from Natural Earth. Country dots are approximate, not company addresses. Select a dot to filter the list.</small>
     </div>
+    <section style={{margin:"20px 0"}}>
+      <h2>Companies by headquarters country</h2>
+      {groups.length===0?<p>No countries assigned yet. Review the registry below.</p>:<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:12}}>
+        {visible.map(([country,companies])=><div className="card" key={country} style={{padding:16}}>
+          <h3 style={{margin:"0 0 8px"}}>{country} <span style={{fontWeight:400}}>({companies.length})</span></h3>
+          <ul style={{paddingLeft:18,margin:0}}>{companies.map(e=><li key={e.id} style={{marginBottom:5}}><Link href={`/employer/${e.id}`}>{e.name}</Link></li>)}</ul>
+        </div>)}
+      </div>}
+    </section>
     <div style={{display:"flex",gap:10,flexWrap:"wrap",margin:"18px 0"}}>
       <button className="handle" type="button" onClick={()=>setSelected(null)}>All countries</button>
       {groups.map(([country,companies])=><button className="handle" type="button" key={country} onClick={()=>setSelected(selected===country?null:country)} style={{fontWeight:selected===country?800:400}}>{country} ({companies.length})</button>)}

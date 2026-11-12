@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { updateEmployerCountry } from "./actions";
+
 
 type Employer = {id:number;name:string;sector:string|null;country:string|null};
 const LOCATIONS: Record<string,[number,number]> = {
@@ -49,10 +49,7 @@ export function HeadquartersMap({employers}:{employers:Employer[]}) {
     return ()=>controller.abort();
   },[]);
   const [search,setSearch]=useState("");
-  const [pending,start]=useTransition();
-  const [error,setError]=useState("");
-  const [overrides,setOverrides]=useState<Record<number,string|null>>({});
-  const rows=useMemo(()=>employers.map(e=>({...e,country:Object.prototype.hasOwnProperty.call(overrides,e.id)?overrides[e.id]:e.country})),[employers,overrides]);
+  const rows=useMemo(()=>employers.filter(e=>Boolean(e.country)&&e.country!=="United States"&&e.country!=="Other"&&Boolean(LOCATIONS[e.country!])),[employers]);
   const groups=useMemo(()=>{
     const result=new Map<string,Employer[]>();
     for(const e of rows) if(e.country && e.country!=="Other" && LOCATIONS[e.country]) {
@@ -60,14 +57,14 @@ export function HeadquartersMap({employers}:{employers:Employer[]}) {
     }
     return [...result.entries()].sort((a,b)=>b[1].length-a[1].length);
   },[rows]);
-  const unverified=rows.filter(e=>!e.country || e.country==="Other").length;
+  const unverified=employers.filter(e=>!e.country||e.country==="Other").length;
   const visible=groups.filter(([country])=>!selected||selected===country);
   return <main className="wrap" style={{maxWidth:1300}}>
-    <header className="head"><div><h1>Global Headquarters</h1><div className="tag">International business connections to McKinney</div></div></header>
-    <p style={{margin:"12px 0 20px"}}>Country-level origin map. Dots represent <strong>approximate country locations, not actual headquarters addresses</strong>. Lines show conceptual connections to McKinney, not travel routes.</p>
-    <div className="dir-summary"><strong>{rows.length-unverified}</strong> firms with mapped countries · <strong>{groups.length}</strong> countries · <strong>{unverified}</strong> not mapped or unverified</div>
+    <header className="head"><div><h1>Global Headquarters</h1><div className="tag">Foreign-owned employers connected to McKinney</div></div></header>
+    <p style={{margin:"12px 0 20px"}}>Only foreign-parent companies are included. Dots represent <strong>approximate country locations, not actual headquarters addresses</strong>. Lines show conceptual connections to McKinney, not travel routes.</p>
+    <div className="dir-summary"><strong>{rows.length}</strong> foreign-owned firms · <strong>{groups.length}</strong> countries represented</div>
     <div className="card" style={{padding:12,overflow:"hidden"}}>
-      <svg viewBox="0 0 1000 500" role="img" aria-label="Schematic world map showing approximate country centers connected to McKinney" style={{display:"block",width:"100%",height:"auto",background:"#eaf1f3",borderRadius:8}}>
+      <svg viewBox="0 0 1000 500" role="img" aria-label="World map showing foreign-parent countries connected to McKinney" style={{display:"block",width:"100%",height:"auto",background:"#eaf1f3",borderRadius:8}}>
         <g fill="#c4d7d7" stroke="#9cb7bb" strokeWidth=".65" fillRule="evenodd">{land.map((feature,i)=><path key={i} d={featurePath(feature)} />)}</g>
         <g stroke="#d5e2e4" strokeWidth=".8">{[100,200,300,400,500,600,700,800,900].map(x=><path key={x} d={`M${x} 0V500`}/>)}{[100,200,300,400].map(y=><path key={y} d={`M0 ${y}H1000`}/>)}</g>
         {visible.map(([country])=>{const p=project(LOCATIONS[country]);return <path key={country} d={arc(MCKINNEY,p)} stroke="#178c9b" strokeWidth="2" strokeOpacity=".65" strokeDasharray="5 4" fill="none"/>})}
@@ -76,7 +73,7 @@ export function HeadquartersMap({employers}:{employers:Employer[]}) {
         <text x={MCKINNEY[0]+12} y={MCKINNEY[1]-11} fontSize="15" fontWeight="700" fill="#23464d">McKinney</text>
       </svg>\n      {mapError&&<p role="alert">Country boundary data could not load. The company registry remains available.</p>}
       {!mapError&&land.length===0&&<p>Loading geographic boundaries…</p>}
-      {groups.length===0&&<p>No companies mapped yet. Assign verified headquarters countries below to display connections.</p>}
+      {groups.length===0&&<p>No verified foreign-parent companies mapped yet.</p>}
       <small style={{display:"block",marginTop:8}}>Real country outlines from Natural Earth. Country dots are approximate, not company addresses. Select a dot to filter the list.</small>
     </div>
     <section style={{margin:"20px 0"}}>
@@ -93,17 +90,13 @@ export function HeadquartersMap({employers}:{employers:Employer[]}) {
       {groups.map(([country,companies])=><button className="handle" type="button" key={country} onClick={()=>setSelected(selected===country?null:country)} style={{fontWeight:selected===country?800:400}}>{country} ({companies.length})</button>)}
     </div>
     <div className="card" style={{padding:16}}>
-      <h2 style={{marginTop:0}}>Company headquarters registry</h2>
-      <p>Update a company's country after verifying its global headquarters. Unknown companies are intentionally not plotted.</p>
+      <h2 style={{marginTop:0}}>Foreign-owned companies</h2>
+      <p>Companies shown have researched foreign parent-company origins. U.S.-headquartered firms and unverified records are excluded.</p>
       <input className="paste-input" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search companies…" aria-label="Search companies" style={{width:"100%",marginBottom:12}}/>
-      {error&&<p role="alert" style={{color:"#a33"}}>{error}</p>}
       <div style={{maxHeight:520,overflowY:"auto"}}>
         {rows.filter(e=>(!selected||e.country===selected)&&(`${e.name} ${e.country??""}`.toLowerCase().includes(search.toLowerCase()))).map(e=><div key={e.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid #e3e9ea",flexWrap:"wrap"}}>
           <div style={{flex:"1 1 220px"}}><Link href={`/employer/${e.id}`} style={{fontWeight:600}}>{e.name}</Link><div style={{fontSize:12,opacity:.75}}>{e.sector??"Sector not listed"}</div></div>
-          <select aria-label={`Headquarters country for ${e.name}`} className="paste-input" style={{minWidth:170}} disabled={pending} value={e.country??""} onChange={event=>{
-            const next=event.target.value||null;const previous=e.country;setOverrides(old=>({...old,[e.id]:next}));setError("");
-            start(async()=>{const result=await updateEmployerCountry(e.id,next);if(!result.ok){setOverrides(old=>({...old,[e.id]:previous}));setError(result.error??"Could not save country.");}});
-          }}><option value="">Not verified</option>{Object.keys(LOCATIONS).map(country=><option key={country} value={country}>{country}</option>)}</select>
+          <strong>{e.country}</strong>
         </div>)}
       </div>
     </div>

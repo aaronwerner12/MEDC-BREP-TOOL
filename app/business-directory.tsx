@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { EdcMark } from "./edc-mark";
 import Link from "next/link";
-import { addBusiness, discoverEmployers, removeBusiness, fillMissingProfiles, scanAllNews, updateEmployerCountry } from "./actions";
+import { addBusiness, discoverEmployers, removeBusiness, fillMissingProfiles, scanAllNews } from "./actions";
 
 export type DirStatus = "risk" | "growth" | "watch" | "none";
 
@@ -11,7 +11,6 @@ export interface DirEmployer {
   id: number;
   name: string;
   sector: string | null;
-  country: string | null;
   band: string | null;
   segment: "medc" | "mckinney";
   status: DirStatus;
@@ -36,7 +35,6 @@ type View = "all" | "medc" | "mckinney";
 export function BusinessDirectory({ employers }: { employers: DirEmployer[] }) {
   const [q, setQ] = useState("");
   const [view, setView] = useState<View>("all");
-  const [countryFilter, setCountryFilter] = useState("all");
   const [name, setName] = useState("");
   const [sector, setSector] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -47,17 +45,15 @@ export function BusinessDirectory({ employers }: { employers: DirEmployer[] }) {
   const medcCount = useMemo(() => employers.filter((e) => e.segment === "medc").length, [employers]);
   const mckCount = employers.length - medcCount;
 
-  const countries = useMemo(() => [...new Set(employers.map(e => e.country).filter((c): c is string => Boolean(c)))].sort(), [employers]);
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return employers.filter((e) => {
       if (view === "medc" && e.segment !== "medc") return false;
       if (view === "mckinney" && e.segment !== "mckinney") return false;
-      if (countryFilter !== "all" && (e.country ?? "Unknown") !== countryFilter) return false;
       if (!needle) return true;
       return e.name.toLowerCase().includes(needle) || (e.sector ?? "").toLowerCase().includes(needle);
     });
-  }, [q, view, countryFilter, employers]);
+  }, [q, view, employers]);
 
   // Group the filtered firms by size band, largest first.
   const groups = useMemo(() => {
@@ -169,12 +165,6 @@ export function BusinessDirectory({ employers }: { employers: DirEmployer[] }) {
           onChange={(e) => setQ(e.target.value)}
           placeholder={`Search ${employers.length} tracked firms…`}
         />
-        <label style={{display:"flex",alignItems:"center",gap:8}}>Headquarters country
-          <select aria-label="Filter headquarters country" value={countryFilter} onChange={e=>setCountryFilter(e.target.value)} className="paste-input">
-            <option value="all">All countries</option><option value="Unknown">Not verified</option>
-            {countries.map(c=><option key={c} value={c}>{c}</option>)}
-          </select>
-        </label>
         <div className="seg-toggle">
           <button className={view === "all" ? "seg on" : "seg"} type="button" onClick={() => setView("all")}>
             All ({employers.length})
@@ -228,7 +218,6 @@ function BandGroup({ band, rows }: { band: string | null; rows: DirEmployer[] })
               {e.band && <span className="chip band">{e.band}</span>}
               <span className={`status ${e.status}`}>{statusLabel(e.status)}</span>
             </Link>
-            <CountrySelect id={e.id} country={e.country} />
             <RemoveBtn id={e.id} name={e.name} />
           </div>
         ))}
@@ -341,21 +330,3 @@ function RemoveBtn({ id, name }: { id: number; name: string }) {
   );
 }
 
-
-const COUNTRY_OPTIONS = ["United States", "South Korea", "Japan", "Taiwan", "China", "Germany", "United Kingdom", "Canada", "France", "Italy", "Netherlands", "Switzerland", "Sweden", "India", "Other"];
-
-function CountrySelect({id, country}:{id:number;country:string|null}) {
-  const [value,setValue]=useState(country ?? "");
-  const [pending,start]=useTransition();
-  const [error,setError]=useState("");
-  return <div style={{display:"flex",flexDirection:"column",gap:2,minWidth:125}}>
-    <select aria-label="Headquarters country" title="Country of global headquarters, not the McKinney office" className="paste-input" style={{maxWidth:160}} disabled={pending} value={value} onChange={e=>{
-      const next=e.target.value; const prior=value; setValue(next);setError("");
-      start(async()=>{const result=await updateEmployerCountry(id,next || null);if(!result.ok){setValue(prior);setError(result.error ?? "Save failed");}});
-    }}>
-      <option value="">Not verified</option>
-      {COUNTRY_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}
-    </select>
-    {error && <small role="alert" style={{color:"#a33"}}>{error}</small>}
-  </div>;
-}

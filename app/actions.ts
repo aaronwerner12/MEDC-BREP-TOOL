@@ -46,7 +46,9 @@ export async function unhandle(formData: FormData) {
 // button so no secret or URL is needed.
 export async function pullFeeds() {
   const results = await runAllFeeds();
-  revalidatePath("/");
+  // Do not revalidate the route here: doing so can replace the client component
+  // before it has a chance to display the diagnostic results.
+  // The user can refresh the dashboard after inspecting the report.
   return { completedAt: new Date().toISOString(), results };
 }
 

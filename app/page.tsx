@@ -10,7 +10,7 @@ import {
   type RiskInput,
   type RiskResult,
 } from "@/lib/risk";
-import { handleEmployer, pullFeeds } from "./actions";
+import { handleEmployer } from "./actions";
 import { PullButton } from "./pull-button";
 import { RiskBadge } from "./risk-badge";
 import { parseProfile } from "@/lib/profile";
@@ -482,9 +482,7 @@ function DailyBriefing({
         <Link className="brief-worksheet" href="/followups">
           Open the retention worksheet →
         </Link>
-        <form action={pullFeeds}>
-          <PullButton />
-        </form>
+        <PullButton />
       </div>
     </section>
   );

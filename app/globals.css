@@ -2090,3 +2090,64 @@ a.twc:hover {
   border: 1px dashed var(--line);
   border-radius: var(--radius);
 }
+
+
+/* MEDC interface refresh: quiet, information-first civic enterprise UI. */
+:root {
+  --bg: #f5f7f8;
+  --surface: #fff;
+  --navy: #123a43;
+  --denim: #31636c;
+  --muted: #667780;
+  --ink: #263b43;
+  --line: #e1e7e9;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 2px rgba(17, 46, 54, .035);
+}
+body { font-family: "Inter", "Libre Franklin", ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.55; }
+h1, h2, h3, .section-title, .twc-company, .rep-company, .health-status,
+.hnum, .src-name, .brief-title, .tw-head, .edc-wordmark .ew-name {
+  font-family: "Inter", "Libre Franklin", ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -.025em;
+}
+.rail { width: 88px; background: #123740; border-right: 1px solid #2b515a; padding-top: 20px; gap: 6px; }
+.rail-logo { margin-bottom: 24px; }
+.rail-item { font-size: 11px; font-weight: 500; letter-spacing: 0; padding: 12px 0; gap: 6px; transition: background .15s ease, color .15s ease; }
+.rail-item.active { box-shadow: inset 3px 0 0 #b5d6d2; background: #254e56; font-weight: 650; }
+.rail-item:focus-visible, a:focus-visible, button:focus-visible { outline: 3px solid #76b9c5; outline-offset: 2px; }
+.wrap { max-width: 1360px; padding: 34px clamp(20px, 3vw, 48px) 80px; }
+.head { padding-bottom: 22px; border-bottom: 1px solid var(--line); margin-bottom: 26px; }
+.head h1 { font-size: clamp(23px, 2.2vw, 31px); line-height: 1.22; font-weight: 750; letter-spacing: -.045em; }
+.head .tag { color: var(--muted); font-size: 13px; margin-top: 6px; }
+.logo { border-radius: 8px; width: 48px; height: 48px; }
+.section { margin-top: 30px; }
+.section-head { border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 14px; }
+.section-title { font-size: 18px; font-weight: 700; letter-spacing: -.035em; }
+.section-sub { font-size: 12px; color: var(--muted); }
+.brief, .rep-item, .twc, .card { border-radius: 8px; box-shadow: var(--shadow); }
+.brief { border-left: 1px solid var(--line); padding: 22px 24px; }
+.brief-headline { font-size: 21px; letter-spacing: -.035em; }
+.brief-todo { background: #f9fafb; border-radius: 6px; transition: background .15s ease; }
+.brief-todo:hover { transform: none; background: #edf3f4; }
+.tw-grid { gap: 12px; }
+.twc { border-top-width: 2px; padding: 15px; gap: 8px; }
+.twc-company { font-size: 14px; font-weight: 700; line-height: 1.35; }
+.twc-reason { font-size: 12px; line-height: 1.55; }
+.twc-rank { background: #eaf0f1; color: var(--navy); border-radius: 5px; }
+a.twc:hover { transform: none; border-color: #9bbbc0; box-shadow: 0 3px 12px rgba(17,46,54,.08); }
+.pill, .stat, .chip, .badge { letter-spacing: 0; }
+.btn-primary { border-radius: 6px; padding: 10px 16px; }
+.btn-primary:hover { background: #22525c; }
+.navlink { border-radius: 6px; }
+@media (max-width: 640px) {
+  .rail { width: 100%; padding: 8px; gap: 0; overflow-x: auto; }
+  .rail-item { font-size: 10px; min-width: 64px; padding: 7px 4px; }
+  .wrap { padding: 22px 16px 50px; }
+  .head { align-items: flex-start; }
+  .head h1 { font-size: 22px; }
+  .tw-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}

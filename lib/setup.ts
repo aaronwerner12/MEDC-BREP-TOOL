@@ -272,5 +272,12 @@ export async function ensureSchema(): Promise<SetupStep[]> {
     where name in ('Tong Yang Group','Wistron Greentech','Encore Wire','Hisun')
   `);
 
+  // MEDC press release dated Jan 22, 2026 identifies Edenlux as South Korea-based.
+  await run("seed Edenlux international innovation company", () => sql`
+    insert into employers (name, sector, segment, headquarters_country)
+    values ('Edenlux', 'Health technology / vision wellness', 'medc', 'South Korea')
+    on conflict (name) do update set headquarters_country = 'South Korea'
+  `);
+
   return steps;
 }

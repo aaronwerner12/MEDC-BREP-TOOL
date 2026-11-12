@@ -217,5 +217,41 @@ export async function ensureSchema(): Promise<SetupStep[]> {
       ('Invene',                array['Invene'],                                             null)
     on conflict (name) do nothing`);
 
+
+  // Starter geography for well-established corporate headquarters/parent groups.
+  // Only fill blanks: never overwrite MEDC staff corrections. Other firms remain
+  // unverified until reviewed. These are country-level, not office coordinates.
+  await run("seed known headquarters countries", () => sql`
+    update employers
+    set headquarters_country = case
+      when name in ('Wistron Greentech') then 'Taiwan'
+      when name in ('Tong Yang Group') then 'South Korea'
+      when name in ('Hisun') then 'China'
+      when name in ('Encore Wire') then 'Italy'
+      when name in (
+        'Raytheon Intelligence & Space', 'Globe Life', 'Independent Financial',
+        'Dynacraft', 'Amazon', 'LifePath Systems', 'Simpson Strong-Tie',
+        'Blount Fine Foods', 'SRS Distribution', 'Watson & Chalin Mfg.',
+        'Cotiviti', 'Leon''s Texas Cuisine', 'Service First Mortgage',
+        'Waste Connections', 'Traxxas', 'Pogue Construction', 'Emerson',
+        'Aramark Uniform Services', 'Merrill Lynch Wealth Mgmt.',
+        'Oncor', 'Kimley-Horn', 'McKinney ISD', 'City of McKinney',
+        'Collin College', 'Medical City McKinney'
+      ) then 'United States'
+      else headquarters_country
+    end
+    where headquarters_country is null and name in (
+      'Wistron Greentech','Tong Yang Group','Hisun','Encore Wire',
+      'Raytheon Intelligence & Space','Globe Life','Independent Financial',
+      'Dynacraft','Amazon','LifePath Systems','Simpson Strong-Tie',
+      'Blount Fine Foods','SRS Distribution','Watson & Chalin Mfg.',
+      'Cotiviti','Leon''s Texas Cuisine','Service First Mortgage',
+      'Waste Connections','Traxxas','Pogue Construction','Emerson',
+      'Aramark Uniform Services','Merrill Lynch Wealth Mgmt.',
+      'Oncor','Kimley-Horn','McKinney ISD','City of McKinney',
+      'Collin College','Medical City McKinney'
+    )
+  `);
+
   return steps;
 }

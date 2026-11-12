@@ -318,9 +318,9 @@ export default async function Desk() {
           <EdcMark />
         </div>
         <div>
-          <h1>McKinney Business Retention &amp; Expansion Monitor</h1>
+          <h1>Business intelligence</h1>
           <div className="tag">
-            Early warning, visits, and follow-up for local employers
+            McKinney Economic Development · Business retention &amp; expansion
           </div>
         </div>
       </header>
@@ -337,7 +337,7 @@ export default async function Desk() {
           <div className="grid">
             <main className="section">
               <SectionHead
-                title="Action queue"
+                title="Open items"
                 sub="Every open item, most material first. One row per company."
               />
               <Legend />
@@ -345,7 +345,7 @@ export default async function Desk() {
             </main>
 
             <aside className="section">
-              <SectionHead title="Notable employers" sub="Tracked by MEDC, grouped by size." />
+              <SectionHead title="Employer portfolio" sub="Tracked by MEDC, grouped by size." />
               <Watchlist
                 employers={data.employers}
                 statusByEmployer={data.statusByEmployer}
@@ -572,7 +572,7 @@ function TopWatch({
   return (
     <section className="topwatch section">
       <SectionHead
-        title="Top things to watch"
+        title="Priority signals"
         sub={
           top.length > 0
             ? `The ${top.length} biggest items with activity in the last ${months} months`

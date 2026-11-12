@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { updateEmployerCountry } from "./actions";
 
@@ -16,21 +16,38 @@ const COUNTRIES = Object.keys(LOCATIONS).filter(c=>c!=="Other");
 const W=1000,H=500;
 const project=([lon,lat]:[number,number]):[number,number]=>[(lon+180)/360*W,(90-lat)/180*H];
 const MCKINNEY=project([-96.6153,33.1972]);
-const LAND = [
-  "M45 100 L100 65 180 75 230 110 235 165 205 190 180 230 145 225 120 195 90 180 70 140Z",
-  "M175 220 L230 225 260 270 245 330 215 395 190 440 170 390 155 320Z",
-  "M410 105 L455 80 495 95 525 125 555 115 605 90 675 80 740 95 800 110 855 150 870 200 820 225 785 210 750 250 705 230 680 200 640 195 600 175 565 205 530 195 510 160 480 165 445 145Z",
-  "M485 215 L540 215 570 250 560 320 535 380 495 350 470 285Z",
-  "M790 310 L855 300 885 340 860 385 800 380 770 345Z",
-  "M240 55 L290 30 325 60 305 115 260 125Z",
-  "M930 380 L950 375 955 395 940 410Z"
-];
+type GeoFeature = { geometry: { type: "Polygon" | "MultiPolygon"; coordinates: number[][][] | number[][][][] } | null };
+const GEOJSON_URL = "https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson";
+function ringPath(ring:number[][]):string {
+  return ring.map((p,i)=>{const [x,y]=project([p[0],p[1]]);return (i?"L":"M")+x.toFixed(1)+","+y.toFixed(1);}).join(" ")+" Z";
+}
+function featurePath(feature:GeoFeature):string {
+  const geometry=feature.geometry;
+  if(!geometry)return "";
+  const polygons:number[][][][]=geometry.type==="Polygon"
+    ? [geometry.coordinates as number[][][]]
+    : geometry.coordinates as number[][][][];
+  return polygons.map(poly=>poly.map(ringPath).join(" ")).join(" ");
+}
 function arc(a:[number,number],b:[number,number]) {
   const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy);
   return `M ${a[0]} ${a[1]} Q ${(a[0]+b[0])/2} ${(a[1]+b[1])/2-Math.min(100,len*.22)} ${b[0]} ${b[1]}`;
 }
 export function HeadquartersMap({employers}:{employers:Employer[]}) {
   const [selected,setSelected]=useState<string|null>(null);
+  const [land,setLand]=useState<GeoFeature[]>([]);
+  const [mapError,setMapError]=useState(false);
+  useEffect(()=>{
+    const controller=new AbortController();
+    fetch(GEOJSON_URL,{signal:controller.signal})
+      .then(r=>{if(!r.ok)throw new Error("Map unavailable");return r.json();})
+      .then((data:{features?:GeoFeature[]})=>{
+        if(!Array.isArray(data.features))throw new Error("Invalid geographic data");
+        setLand(data.features.filter(f=>f.geometry?.type==="Polygon"||f.geometry?.type==="MultiPolygon"));
+      })
+      .catch(err=>{if(err?.name!=="AbortError")setMapError(true);});
+    return ()=>controller.abort();
+  },[]);
   const [search,setSearch]=useState("");
   const [pending,start]=useTransition();
   const [error,setError]=useState("");
@@ -51,14 +68,14 @@ export function HeadquartersMap({employers}:{employers:Employer[]}) {
     <div className="dir-summary"><strong>{rows.length-unverified}</strong> firms with mapped countries · <strong>{groups.length}</strong> countries · <strong>{unverified}</strong> not mapped or unverified</div>
     <div className="card" style={{padding:12,overflow:"hidden"}}>
       <svg viewBox="0 0 1000 500" role="img" aria-label="Schematic world map showing approximate country centers connected to McKinney" style={{display:"block",width:"100%",height:"auto",background:"#eaf1f3",borderRadius:8}}>
-        <g fill="#cad9d9" stroke="#a8c0c2" strokeWidth="1.5">{LAND.map((d,i)=><path key={i} d={d}/>)}</g>
+        <g fill="#c4d7d7" stroke="#9cb7bb" strokeWidth=".65" fillRule="evenodd">{land.map((feature,i)=><path key={i} d={featurePath(feature)} />)}</g>
         <g stroke="#d5e2e4" strokeWidth=".8">{[100,200,300,400,500,600,700,800,900].map(x=><path key={x} d={`M${x} 0V500`}/>)}{[100,200,300,400].map(y=><path key={y} d={`M0 ${y}H1000`}/>)}</g>
         {visible.map(([country])=>{const p=project(LOCATIONS[country]);return <path key={country} d={arc(MCKINNEY,p)} stroke="#178c9b" strokeWidth="2" strokeOpacity=".65" strokeDasharray="5 4" fill="none"/>})}
         {groups.map(([country,companies])=>{const [x,y]=project(LOCATIONS[country]);return <g key={country} role="button" tabIndex={0} aria-label={`${country}: ${companies.length} companies`} onClick={()=>setSelected(selected===country?null:country)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setSelected(selected===country?null:country)}}} style={{cursor:"pointer"}}><circle cx={x} cy={y} r={selected===country?13:10} fill={selected===country?"#e1a947":"#0e6e79"} stroke="white" strokeWidth="2"/><text x={x} y={y+4} textAnchor="middle" fontSize="11" fontWeight="700" fill="white">{companies.length}</text><title>{country}: {companies.map(e=>e.name).join(", ")}</title></g>})}
         <circle cx={MCKINNEY[0]} cy={MCKINNEY[1]} r="7" fill="#cf633d" stroke="white" strokeWidth="2"/>
         <text x={MCKINNEY[0]+12} y={MCKINNEY[1]-11} fontSize="15" fontWeight="700" fill="#23464d">McKinney</text>
-      </svg>
-      <small style={{display:"block",marginTop:8}}>Schematic world background. Country dots use representative geographic coordinates. Select a dot to filter the list.</small>
+      </svg>\n      {mapError&&<p role="alert">Country boundary data could not load. The company registry remains available.</p>}\n      {!mapError&&land.length===0&&<p>Loading geographic boundaries…</p>}\n      {groups.length===0&&<p>No companies mapped yet. Assign verified headquarters countries below to display connections.</p>}
+      <small style={{display:"block",marginTop:8}}>Real country outlines from Natural Earth. Country dots are approximate, not company addresses. Select a dot to filter the list.</small>
     </div>
     <div style={{display:"flex",gap:10,flexWrap:"wrap",margin:"18px 0"}}>
       <button className="handle" type="button" onClick={()=>setSelected(null)}>All countries</button>

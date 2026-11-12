@@ -15,12 +15,11 @@ interface Row {
   sector: string | null;
   band: string | null;
   segment: string | null;
-  headquarters_country: string | null;
 }
 
 async function readDirectory(): Promise<{ employers: DirEmployer[] } | null> {
   const rows = (await sql`
-    select id, coalesce(official_name, name) as name, sector, band, coalesce(segment, 'medc') as segment, headquarters_country
+    select id, coalesce(official_name, name) as name, sector, band, coalesce(segment, 'medc') as segment
     from employers
     where active = true
     order by name
@@ -45,7 +44,6 @@ async function readDirectory(): Promise<{ employers: DirEmployer[] } | null> {
     id: r.id,
     name: r.name,
     sector: r.sector,
-    country: r.headquarters_country,
     band: r.band,
     segment: r.segment === "mckinney" ? "mckinney" : "medc",
     status: statusById.get(r.id) ?? "none",

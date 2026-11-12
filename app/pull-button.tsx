@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { pullFeed } from "./actions";
 import type { FeedResult, FeedSource } from "@/lib/pipeline";
 
-const SOURCES: FeedSource[] = ["twc_warn", "sec_edgar", "usaspending", "epa_echo", "news", "mckinney_permits", "job_postings", "texas_sales_tax", "collin_employment", "property_records"];
+const SOURCES: FeedSource[] = ["twc_warn", "sec_edgar", "usaspending", "epa_echo", "news"];
 
 export function PullButton() {
   const [pending, startTransition] = useTransition();

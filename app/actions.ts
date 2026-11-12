@@ -45,8 +45,9 @@ export async function unhandle(formData: FormData) {
 // Same work as the daily /api/cron/all dispatcher, invoked from the dashboard
 // button so no secret or URL is needed.
 export async function pullFeeds() {
-  await runAllFeeds();
+  const results = await runAllFeeds();
   revalidatePath("/");
+  return { completedAt: new Date().toISOString(), results };
 }
 
 // Server action: add a business to the tracked McKinney directory.

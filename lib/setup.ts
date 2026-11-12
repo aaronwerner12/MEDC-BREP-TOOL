@@ -225,7 +225,7 @@ export async function ensureSchema(): Promise<SetupStep[]> {
     update employers
     set headquarters_country = case
       when name in ('Wistron Greentech') then 'Taiwan'
-      when name in ('Tong Yang Group') then 'South Korea'
+      when name in ('Tong Yang Group') then 'Taiwan'
       when name in ('Hisun') then 'China'
       when name in ('Encore Wire') then 'Italy'
       when name in (
@@ -251,6 +251,25 @@ export async function ensureSchema(): Promise<SetupStep[]> {
       'Oncor','Kimley-Horn','McKinney ISD','City of McKinney',
       'Collin College','Medical City McKinney'
     )
+  `);
+
+
+  // Foreign-parent headquarters researched against corporate and government sources.
+  // Keep this curated list separate from the broader domestic company directory.
+  await run("seed foreign headquarters corrections and LITEON", () => sql`
+    insert into employers (name, aliases, sector, segment, headquarters_country)
+    values ('LITEON', array['Lite-On','Lite-On Technology','LITEON Technology'], 'Advanced electronics manufacturing', 'medc', 'Taiwan')
+    on conflict (name) do update set headquarters_country = 'Taiwan'
+  `);
+  await run("correct foreign-parent headquarters", () => sql`
+    update employers set headquarters_country = case name
+      when 'Tong Yang Group' then 'Taiwan'
+      when 'Wistron Greentech' then 'Taiwan'
+      when 'Encore Wire' then 'Italy'
+      when 'Hisun' then 'China'
+      else headquarters_country
+    end
+    where name in ('Tong Yang Group','Wistron Greentech','Encore Wire','Hisun')
   `);
 
   return steps;

@@ -34,6 +34,10 @@ export async function ensureSchema(): Promise<SetupStep[]> {
       active     boolean default true
     )`);
 
+  await run("add employer headquarters country", () => sql`
+    alter table employers add column if not exists headquarters_country text
+  `);
+
   await run("create table signals", () => sql`
     create table if not exists signals (
       id                 bigserial primary key,

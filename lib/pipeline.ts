@@ -15,7 +15,6 @@ import { twcWarnSignals } from "../adapters/twcWarn";
 import { secEdgarSignals } from "../adapters/secEdgar";
 import { echoSignals } from "../adapters/echo";
 import { newsSignals } from "../adapters/newsAll";
-import { LOCAL_SOURCES, localSignals } from "../adapters/localSources";
 
 interface FeedDef {
   source: string;
@@ -42,7 +41,6 @@ const FEEDS: FeedDef[] = [
   // by article id via unique(source, external_id). Higher cap since it spans the
   // whole watchlist.
   { source: "news", run: newsSignals, maxItems: 80 },
-  ...LOCAL_SOURCES.map((source) => ({ source, run: (employers: EmployerRow[]) => localSignals(source, employers) })),
 ];
 
 // Cap how many items each feed contributes so a single pull stays well within
@@ -61,7 +59,7 @@ export interface FeedResult {
 // Run exactly one feed per invocation to avoid the 60-second combined pull timeout.
 // News uses a rotating small employer batch; other feeds run independently.
 // This deliberately skips expensive contract/risk snapshot maintenance.
-export const FEED_SOURCES = ["twc_warn", "sec_edgar", "usaspending", "epa_echo", "news", ...LOCAL_SOURCES] as const;
+export const FEED_SOURCES = ["twc_warn", "sec_edgar", "usaspending", "epa_echo", "news"] as const;
 export type FeedSource = (typeof FEED_SOURCES)[number];
 
 export async function runSingleFeed(source: FeedSource): Promise<FeedResult> {

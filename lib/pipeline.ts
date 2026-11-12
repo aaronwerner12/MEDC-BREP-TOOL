@@ -72,7 +72,7 @@ export async function runSingleFeed(source: FeedSource): Promise<FeedResult> {
       // checkpoint, not a claim that news was found.
       const selected = (await sql`
         select id from employers where active = true
-        order by news_scanned_at asc nulls first, id asc limit 5
+        order by news_scanned_at asc nulls first, id asc limit 10
       `) as { id: number }[];
       const ids = new Set(selected.map((r) => r.id));
       employers = employers.filter((e) => ids.has(e.id));

@@ -52,7 +52,7 @@ export function PullButton() {
             ))}
           </ul>
           {pending && <small>Working on {current ?? "next source"}…</small>}
-          {!pending && <small>News scans five employers per run. Refresh the dashboard to view newly saved signals.</small>}
+          {!pending && <small>News scans ten least-recently-checked employers per run. Refresh the dashboard to view newly saved signals.</small>}
         </section>
       )}
     </div>

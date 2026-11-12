@@ -2,7 +2,7 @@
 
 import { sql } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { runAllFeeds } from "@/lib/pipeline";
+import { runSingleFeed, type FeedSource } from "@/lib/pipeline";
 import { generateEmployerBrief, type BriefSignal } from "@/lib/brief";
 import { generateEmployerBriefRules } from "@/lib/briefRules";
 import { generateCompanyProfile, type CompanyProfile } from "@/lib/profile";
@@ -41,15 +41,9 @@ export async function unhandle(formData: FormData) {
   revalidatePath("/handled");
 }
 
-// Server action: pull every feed on demand, score each item, and ingest.
-// Same work as the daily /api/cron/all dispatcher, invoked from the dashboard
-// button so no secret or URL is needed.
-export async function pullFeeds() {
-  const results = await runAllFeeds();
-  // Do not revalidate the route here: doing so can replace the client component
-  // before it has a chance to display the diagnostic results.
-  // The user can refresh the dashboard after inspecting the report.
-  return { completedAt: new Date().toISOString(), results };
+// One source per request; avoids the Vercel 60-second combined pull timeout.
+export async function pullFeed(source: FeedSource) {
+  return await runSingleFeed(source);
 }
 
 // Server action: add a business to the tracked McKinney directory.

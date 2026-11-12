@@ -1,39 +1,49 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { pullFeeds } from "./actions";
+import { pullFeed } from "./actions";
+import type { FeedResult, FeedSource } from "@/lib/pipeline";
 
-type PullReport = Awaited<ReturnType<typeof pullFeeds>>;
+const SOURCES: FeedSource[] = ["twc_warn", "sec_edgar", "usaspending", "epa_echo", "news"];
 
 export function PullButton() {
   const [pending, startTransition] = useTransition();
-  const [report, setReport] = useState<PullReport | null>(null);
+  const [results, setResults] = useState<FeedResult[]>([]);
+  const [current, setCurrent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function run() {
+    setResults([]);
     setError(null);
-    setReport(null);
     startTransition(async () => {
-      try {
-        setReport(await pullFeeds());
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Feed pull failed. Check Vercel function logs.");
+      // Separate server requests ensure one slow source cannot consume the
+      // entire time budget for the other sources.
+      for (const source of SOURCES) {
+        setCurrent(source);
+        try {
+          const result = await pullFeed(source);
+          setResults((previous) => [...previous, result]);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Server request failed";
+          setResults((previous) => [...previous, { source, error: message }]);
+          setError("Some feeds failed. Check individual results.");
+        }
       }
+      setCurrent(null);
     });
   }
 
   return (
     <div>
       <button className="btn-primary" type="button" onClick={run} disabled={pending}>
-        {pending ? "Pulling feeds…" : "Pull feeds now"}
+        {pending ? `Pulling ${current ?? "feeds"}…` : "Pull feeds now"}
       </button>
-      {error && <p role="alert" style={{ color: "#9E4A33" }}>Feed pull failed: {error}</p>}
-      {report && (
+      {error && <p role="alert" style={{ color: "#9E4A33" }}>{error}</p>}
+      {(results.length > 0 || pending) && (
         <section aria-live="polite" style={{ marginTop: 12, padding: 12, border: "1px solid #b8c9cc", borderRadius: 8 }}>
-          <strong>Feed results</strong>
-          <div style={{ fontSize: 12 }}>Completed {new Date(report.completedAt).toLocaleString()}</div>
+          <strong>Feed results ({results.length}/{SOURCES.length})</strong>
           <ul style={{ margin: "8px 0", paddingLeft: 20 }}>
-            {report.results.map((r) => (
+            {results.map((r) => (
               <li key={r.source}>
                 <strong>{r.source}</strong>: {r.error
                   ? <span style={{ color: "#9E4A33" }}>Error: {r.error}</span>
@@ -41,7 +51,8 @@ export function PullButton() {
               </li>
             ))}
           </ul>
-          <small>0 new can mean no matching items or previously imported items. Feed errors require investigation.</small>
+          {pending && <small>Working on {current ?? "next source"}…</small>}
+          {!pending && <small>News scans five employers per run. Refresh the dashboard to view newly saved signals.</small>}
         </section>
       )}
     </div>

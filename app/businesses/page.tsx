@@ -66,6 +66,7 @@ export default async function BusinessesPage() {
 
   let data: { employers: DirEmployer[] } | null = null;
   try {
+    await ensureSchema();
     data = await readDirectory();
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

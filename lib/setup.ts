@@ -34,6 +34,10 @@ export async function ensureSchema(): Promise<SetupStep[]> {
       active     boolean default true
     )`);
 
+  await run("add employer headquarters country", () => sql`
+    alter table employers add column if not exists headquarters_country text
+  `);
+
   await run("create table signals", () => sql`
     create table if not exists signals (
       id                 bigserial primary key,
@@ -212,6 +216,68 @@ export async function ensureSchema(): Promise<SetupStep[]> {
       ('Aloha',                 array['Aloha'],                                              null),
       ('Invene',                array['Invene'],                                             null)
     on conflict (name) do nothing`);
+
+
+  // Starter geography for well-established corporate headquarters/parent groups.
+  // Only fill blanks: never overwrite MEDC staff corrections. Other firms remain
+  // unverified until reviewed. These are country-level, not office coordinates.
+  await run("seed known headquarters countries", () => sql`
+    update employers
+    set headquarters_country = case
+      when name in ('Wistron Greentech') then 'Taiwan'
+      when name in ('Tong Yang Group') then 'Taiwan'
+      when name in ('Hisun') then 'China'
+      when name in ('Encore Wire') then 'Italy'
+      when name in (
+        'Raytheon Intelligence & Space', 'Globe Life', 'Independent Financial',
+        'Dynacraft', 'Amazon', 'LifePath Systems', 'Simpson Strong-Tie',
+        'Blount Fine Foods', 'SRS Distribution', 'Watson & Chalin Mfg.',
+        'Cotiviti', 'Leon''s Texas Cuisine', 'Service First Mortgage',
+        'Waste Connections', 'Traxxas', 'Pogue Construction', 'Emerson',
+        'Aramark Uniform Services', 'Merrill Lynch Wealth Mgmt.',
+        'Oncor', 'Kimley-Horn', 'McKinney ISD', 'City of McKinney',
+        'Collin College', 'Medical City McKinney'
+      ) then 'United States'
+      else headquarters_country
+    end
+    where headquarters_country is null and name in (
+      'Wistron Greentech','Tong Yang Group','Hisun','Encore Wire',
+      'Raytheon Intelligence & Space','Globe Life','Independent Financial',
+      'Dynacraft','Amazon','LifePath Systems','Simpson Strong-Tie',
+      'Blount Fine Foods','SRS Distribution','Watson & Chalin Mfg.',
+      'Cotiviti','Leon''s Texas Cuisine','Service First Mortgage',
+      'Waste Connections','Traxxas','Pogue Construction','Emerson',
+      'Aramark Uniform Services','Merrill Lynch Wealth Mgmt.',
+      'Oncor','Kimley-Horn','McKinney ISD','City of McKinney',
+      'Collin College','Medical City McKinney'
+    )
+  `);
+
+
+  // Foreign-parent headquarters researched against corporate and government sources.
+  // Keep this curated list separate from the broader domestic company directory.
+  await run("seed foreign headquarters corrections and LITEON", () => sql`
+    insert into employers (name, aliases, sector, segment, headquarters_country)
+    values ('LITEON', array['Lite-On','Lite-On Technology','LITEON Technology'], 'Advanced electronics manufacturing', 'medc', 'Taiwan')
+    on conflict (name) do update set headquarters_country = 'Taiwan'
+  `);
+  await run("correct foreign-parent headquarters", () => sql`
+    update employers set headquarters_country = case name
+      when 'Tong Yang Group' then 'Taiwan'
+      when 'Wistron Greentech' then 'Taiwan'
+      when 'Encore Wire' then 'Italy'
+      when 'Hisun' then 'China'
+      else headquarters_country
+    end
+    where name in ('Tong Yang Group','Wistron Greentech','Encore Wire','Hisun')
+  `);
+
+  // MEDC press release dated Jan 22, 2026 identifies Edenlux as South Korea-based.
+  await run("seed Edenlux international innovation company", () => sql`
+    insert into employers (name, sector, segment, headquarters_country)
+    values ('Edenlux', 'Health technology / vision wellness', 'medc', 'South Korea')
+    on conflict (name) do update set headquarters_country = 'South Korea'
+  `);
 
   return steps;
 }

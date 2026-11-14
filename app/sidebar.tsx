@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 const ITEMS = [
   { href: "/", label: "Desk", icon: DeskIcon, match: (p: string) => p === "/" || p.startsWith("/employer") },
   { href: "/businesses", label: "Firms", icon: FirmsIcon, match: (p: string) => p.startsWith("/businesses") },
+  { href: "/global-headquarters", label: "Global HQ", icon: GlobeIcon, match: (p: string) => p.startsWith("/global-headquarters") },
   { href: "/followups", label: "Follow-ups", icon: FollowupsIcon, match: (p: string) => p.startsWith("/followups") },
   { href: "/report", label: "Report", icon: ReportIcon, match: (p: string) => p.startsWith("/report") },
   { href: "/sources", label: "Sources", icon: SourcesIcon, match: (p: string) => p.startsWith("/sources") },
@@ -94,3 +95,5 @@ function HandledIcon() {
     </svg>
   );
 }
+
+function GlobeIcon() { return <svg {...sp}><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c-5 5-5 13 0 18M12 3c5 5 5 13 0 18"/></svg>; }

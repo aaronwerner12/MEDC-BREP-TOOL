@@ -56,6 +56,57 @@ export interface FeedResult {
   error?: string;
 }
 
+// Run exactly one feed per invocation to avoid the 60-second combined pull timeout.
+// News uses a rotating small employer batch; other feeds run independently.
+// This deliberately skips expensive contract/risk snapshot maintenance.
+export const FEED_SOURCES = ["twc_warn", "sec_edgar", "usaspending", "epa_echo", "news"] as const;
+export type FeedSource = (typeof FEED_SOURCES)[number];
+
+export async function runSingleFeed(source: FeedSource): Promise<FeedResult> {
+  const feed = FEEDS.find((f) => f.source === source);
+  if (!feed) return { source, error: "Unknown feed" };
+  try {
+    let employers = await loadEmployers();
+    if (source === "news") {
+      // Rotate through employers in groups of five. Timestamp is a scan
+      // checkpoint, not a claim that news was found.
+      const selected = (await sql`
+        select id from employers where active = true
+        order by news_scanned_at asc nulls first, id asc limit 10
+      `) as { id: number }[];
+      const ids = new Set(selected.map((r) => r.id));
+      employers = employers.filter((e) => ids.has(e.id));
+    }
+    const raw = await feed.run(employers);
+    const capped = raw.slice(0, feed.maxItems ?? MAX_PER_FEED);
+    // Never clear snapshot-style rows if a source returns nothing: an empty
+    // response can reflect a transient upstream outage.
+    if (feed.replaceUnhandled && capped.length > 0) {
+      await sql`delete from signals where source = ${source} and handled = false`;
+    }
+    let inserted = 0;
+    let failures = 0;
+    for (const signal of capped) {
+      try {
+        if (await ingestSignal(scoreSignalRules(signal, employers))) inserted++;
+      } catch {
+        failures++;
+      }
+    }
+    if (source === "news" && failures === 0 && employers.length > 0) {
+      const ids = employers.map((e) => e.id);
+      await sql`update employers set news_scanned_at = now() where id = any(${ids}::int[])`;
+    }
+    return {
+      source, found: raw.length, inserted,
+      dropped: raw.length - capped.length,
+      ...(failures ? { error: `${failures} signals failed to save` } : {}),
+    };
+  } catch (err) {
+    return { source, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 // Run every feed: fetch all in parallel, score everything with the deterministic
 // rules scorer, then write per feed. One failing feed or one failing score never
 // aborts the rest. No API key is required.

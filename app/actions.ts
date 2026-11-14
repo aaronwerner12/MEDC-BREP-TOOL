@@ -2,7 +2,7 @@
 
 import { sql } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { runAllFeeds } from "@/lib/pipeline";
+import { runSingleFeed, type FeedSource } from "@/lib/pipeline";
 import { generateEmployerBrief, type BriefSignal } from "@/lib/brief";
 import { generateEmployerBriefRules } from "@/lib/briefRules";
 import { generateCompanyProfile, type CompanyProfile } from "@/lib/profile";
@@ -41,12 +41,24 @@ export async function unhandle(formData: FormData) {
   revalidatePath("/handled");
 }
 
-// Server action: pull every feed on demand, score each item, and ingest.
-// Same work as the daily /api/cron/all dispatcher, invoked from the dashboard
-// button so no secret or URL is needed.
-export async function pullFeeds() {
-  await runAllFeeds();
-  revalidatePath("/");
+// One source per request; avoids the Vercel 60-second combined pull timeout.
+export async function pullFeed(source: FeedSource) {
+  return await runSingleFeed(source);
+}
+
+// Headquarters country is manually verified, never inferred from a company name.
+export async function updateEmployerCountry(id: number, country: string | null) {
+  const allowed = new Set(["United States", "South Korea", "Japan", "Taiwan", "China", "Germany", "United Kingdom", "Canada", "France", "Italy", "Netherlands", "Switzerland", "Sweden", "India", "Other"]);
+  if (!Number.isSafeInteger(id) || (country !== null && !allowed.has(country))) {
+    return { ok: false, error: "Invalid company or country." };
+  }
+  try {
+    await sql`update employers set headquarters_country = ${country} where id = ${id}`;
+    revalidatePath("/businesses");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not save country." };
+  }
 }
 
 // Server action: add a business to the tracked McKinney directory.
